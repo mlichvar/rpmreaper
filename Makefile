@@ -1,3 +1,5 @@
+VERSION = 0.1.3
+
 CFLAGS = -O -g -Wall
 LDFLAGS = -lrpmbuild -lncurses
 
@@ -23,6 +25,11 @@ install: rpmreaper
 	mkdir -p $(bindir) $(man1dir)
 	install rpmreaper $(bindir)
 	install -p -m 644 rpmreaper.1 $(man1dir)
+
+archive:
+	@git archive -v --prefix=rpmreaper-$(VERSION)/ v$(VERSION) | \
+		tar --delete rpmreaper-$(VERSION)/.gitignore | \
+		gzip -9 > rpmreaper-$(VERSION).tar.gz
 
 .deps:
 	@mkdir .deps
