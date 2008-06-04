@@ -1,0 +1,104 @@
+.TH rpmreaper 1
+.SH NAME
+rpmreaper \- A tool for removing unnecessary packages from system
+
+.SH SYNOPSIS
+rpmreaper [-alLv]
+
+.SH DESCRIPTION
+rpmreaper is a simple ncurses application with a mutt-like interface that
+allows removing unnecessary packages and their dependencies from the system.
+
+.SH OPTIONS
+.RS 0
+.TP 8
+\fB-a\fR
+List installed packages. 
+.TP 8
+\fB-L\fR
+List leaf packages. 
+.TP 8
+\fB-l\fR
+List partial leaf packages. 
+.TP 8
+\fB-b\fR
+List broken packages. 
+.TP 8
+\fB-v\fR
+Verbose listing. 
+.RE
+
+The ncurses interface is used when started without any option.
+
+.SH KEYS
+.RS 0
+.TP 8
+\fBup, down, left, pgup, pgdown, home, end, h, j, k\fR
+Move cursor.
+.TP 8
+\fB[, ], <, >\fR
+Scroll screen.
+.TP 8
+\fBd\fR
+Mark the highlighted package to be removed.
+.TP 8
+\fBD\fR
+Mark the highlighted package to be removed even when there are packages that depend on
+the package.
+.TP 8
+\fBu\fR
+Unmark the highlighted package.
+.TP 8
+\fBU\fR
+Unmark the highlighted package even when some dependencies are marked to be removed.
+.TP 8
+\fBr\fR
+Show/hide subtree of packages that are required by the highlighted package.
+.TP 8
+\fBb\fR
+Show/hide subtree of packages that require the highlighted package.
+.TP 8
+\fBo\fR
+Sort packages by name, flags or size.
+.TP 8
+\fBi\fR
+Run \fBrpm -qi | less\fR on the highlighted package.
+.TP 8
+\fBc\fR
+Run \fBrpm -e\fR on marked packages.
+.TP 8
+\fBC\fR
+Run \fBrpm -e --nodeps\fR on marked packages.
+.TP 8
+\fBq\fR
+Ask to remove marked packages and quit.
+.TP 8
+\fBx\fR
+Exit immediately.
+.RE
+
+.SH PACKAGE FLAGS
+.RS 0
+.TP 8
+\fBL\fR
+Leaf, no package depends on the package.
+.TP 8
+\fBl\fR
+Partial leaf, some packages may depend on the package and removing the package
+may remove \fBL\fR/\fBl\fR flag from other packages.
+.TP 8
+\fBD\fR
+Marked to be removed.
+.TP 8
+\fBB\fR
+Missing dependencies.
+.TP 8
+\fBb\fR
+Some packages required by the package are marked to be removed.
+.RE
+
+.SH SEE ALSO
+.BR rpm (8)
+
+.SH AUTHOR
+Miroslav Lichvar <mlichvar@redhat.com>

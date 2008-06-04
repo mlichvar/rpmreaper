@@ -1,0 +1,4 @@
+rpmreaper
+*.o
+.*.swp
+.deps
