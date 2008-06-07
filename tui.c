@@ -44,6 +44,7 @@ struct pkglist {
 	int first;
 	int cursor;
 	int lines;
+	int sortby;
 };
 
 const struct row *get_row(const struct pkglist *l, uint r) {
@@ -86,6 +87,15 @@ void display_status(const struct pkgs *p) {
 	move(LINES - 2, 0);
 	hline('-', COLS);
 	printw("---[ Pkgs: %d (%d KB)  Del: %d (%d KB) ]", pkgs_get_size(p), p->pkgs_kbytes, p->delete_pkgs, p->delete_pkgs_kbytes);
+}
+
+void display_liststatus(const struct pkglist *l) {
+	const char * const sortnames[] = { "name", "flags", "size" };
+
+	if (COLS > 75)
+		mvprintw(LINES - 2, COLS - 20, "(%s)", sortnames[l->sortby]);
+	if (COLS > 60)
+		mvprintw(LINES - 2, COLS - 7, "(%d%%)", MIN((l->first + l->lines) * 100 / array_get_size(&l->rows), 100));
 }
 
 void display_message(const char *m, int attr) {
@@ -209,22 +219,6 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 	}
 
 	attroff(A_REVERSE | A_BOLD);
-}
-
-void init_pkglist(struct pkglist *l, const struct pkgs *p) {
-	uint i;
-
-	memset(l, 0, sizeof (struct pkglist));
-	array_init(&l->rows, sizeof (struct row));
-
-	for (i = 0; i < pkgs_get_size(p); i++)
-		get_wrow(l, i)->pid = i;
-	l->lines = LINES - 3;
-}
-
-void clean_pkglist(struct pkglist *l) {
-	array_clean(&l->rows);
-	memset(l, 0, sizeof (struct pkglist));
 }
 
 void move_cursor(struct pkglist *l, int x) {
@@ -382,36 +376,53 @@ static int compare_rows(const void *r1, const void *r2) {
 	return 0;
 }
 
-void sort_rows(struct pkglist *l, const struct pkgs *p, int s) {
+void sort_rows(struct pkglist *l, const struct pkgs *p) {
 	pkgs = p;
-	sortby = s;
+	sortby = l->sortby;
 	qsort(get_wrow(l, 0), array_get_size(&l->rows), sizeof (struct row), compare_rows);
 	pkgs = NULL;
 	sortby = 0;
 }
 
-void sort(struct pkglist *l, const struct pkgs *p, int *sortby) {
-	int c;
+void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby) {
+	uint i;
+
+	memset(l, 0, sizeof (struct pkglist));
+	array_init(&l->rows, sizeof (struct row));
+
+	for (i = 0; i < pkgs_get_size(p); i++)
+		get_wrow(l, i)->pid = i;
+	l->lines = LINES - 3;
+	l->sortby = sortby;
+	sort_rows(l, p);
+}
+
+void clean_pkglist(struct pkglist *l) {
+	array_clean(&l->rows);
+	memset(l, 0, sizeof (struct pkglist));
+}
+
+void sort(struct pkglist *l, const struct pkgs *p) {
+	int c, s;
 
 	display_question("Sort by (f)lags/(n)ame/(s)ize?:");
 	c = getch();
 	switch (c) {
 		case 'f':
-			*sortby = SORT_BY_FLAGS;
+			s = SORT_BY_FLAGS;
 			break;
 		case 'n':
-			*sortby = SORT_BY_NAME;
+			s = SORT_BY_NAME;
 			break;
 		case 's':
-			*sortby = SORT_BY_SIZE;
+			s = SORT_BY_SIZE;
 			break;
 		default:
 			return;
 	}
 
 	clean_pkglist(l);
-	init_pkglist(l, p);
-	sort_rows(l, p, *sortby);
+	init_pkglist(l, p, s);
 }
 
 void print_pkg(const struct pkgs *p, uint pid) {
@@ -468,17 +479,19 @@ int ask_remove_pkgs(const struct pkgs *p) {
 }
 
 void reread_list(struct pkgs *p, struct pkglist *l) {
+	int sortby = l->sortby;
+
 	pkgs_clean(p);
 	clean_pkglist(l);
 	pkgs_init(p);
 	read_list(p);
-	init_pkglist(l, p);
+	init_pkglist(l, p, sortby);
 }
 
 void tui() {
 	struct pkglist l;
 	struct pkgs p;
-	int c, quit, sortby = SORT_BY_FLAGS;
+	int c, quit;
 
 	initscr();
 	if (has_colors()) {
@@ -503,9 +516,8 @@ void tui() {
 	display_status(&p);
 	read_list(&p);
 
-	init_pkglist(&l, &p);
+	init_pkglist(&l, &p, SORT_BY_FLAGS);
 
-	sort_rows(&l, &p, sortby);
 	for (quit = 0; !quit; ) {
 		if (!pkgs_get_size(&p)) {
 			display_error_message("Nothing to select.");
@@ -521,6 +533,7 @@ void tui() {
 		draw_deplines(&l, &p);
 		display_help();
 		display_status(&p);
+		display_liststatus(&l);
 		move(l.cursor - l.first + 1, 0);
 
 		c = getch();
@@ -574,7 +587,6 @@ void tui() {
 					if (rpmremove(&p, c == 'c' ? 0 : 1))
 						sleep(2);
 					reread_list(&p, &l);
-					sort_rows(&l, &p, sortby);
 				}
 				break;
 			case 'd':
@@ -593,7 +605,7 @@ void tui() {
 				display_pkg_info(&p, get_row(&l, l.cursor)->pid);
 				break;
 			case 'o':
-				sort(&l, &p, &sortby);
+				sort(&l, &p);
 				break;
 			case 'q':
 				quit = 1;
