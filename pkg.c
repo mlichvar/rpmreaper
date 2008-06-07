@@ -242,6 +242,7 @@ void pkgs_match_deps(struct pkgs *p) {
 		fill_required(p, i);
 	sets_set_size(&p->required, n);
 
+	deps_clean(&p->deps);
 	sets_hash(&p->required);
 
 	for (i = 0; i < n; i++)
