@@ -47,6 +47,8 @@ struct pkglist {
 	int sortby;
 };
 
+void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, int s);
+
 const struct row *get_row(const struct pkglist *l, uint r) {
 	return ASGETPTR(row, &l->rows, r);
 }
@@ -335,16 +337,19 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
 		} else
 			move_rows(l, l->cursor + 1, l->cursor + deps + 1);
 
-		for (i = dep = 0; i < sets_get_subsets(r, pid); i++) {
+		for (i = 0, dep = 1; i < sets_get_subsets(r, pid); i++) {
 			d = sets_get_subset_size(r, pid, i);
+			if (!d)
+				continue;
 			for (j = 0; j < d; j++, dep++) {
-				row = get_wrow(l, l->cursor + (reqby ? -(dep + 1) : dep + 1));
+				row = get_wrow(l, l->cursor + (reqby ? -dep : dep));
 				row->pid = sets_get(r, pid, i, j);
 				row->level = get_row(l, l->cursor)->level + 1;
 				row->flags = 0;
 				if (i) 
 					row->flags |= FLAG_REQOR;
 			}
+			sort_rows(l, p, l->cursor + (reqby ? -dep + 1 : dep - d), d, SORT_BY_NAME);
 			if (i && !reqby)
 				row->flags &= ~FLAG_REQOR;
 		}
@@ -376,10 +381,10 @@ static int compare_rows(const void *r1, const void *r2) {
 	return 0;
 }
 
-void sort_rows(struct pkglist *l, const struct pkgs *p) {
+void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, int s) {
 	pkgs = p;
-	sortby = l->sortby;
-	qsort(get_wrow(l, 0), array_get_size(&l->rows), sizeof (struct row), compare_rows);
+	sortby = s;
+	qsort(get_wrow(l, first), size, sizeof (struct row), compare_rows);
 	pkgs = NULL;
 	sortby = 0;
 }
@@ -394,7 +399,7 @@ void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby) {
 		get_wrow(l, i)->pid = i;
 	l->lines = LINES - 3;
 	l->sortby = sortby;
-	sort_rows(l, p);
+	sort_rows(l, p, 0, array_get_size(&l->rows), sortby);
 }
 
 void clean_pkglist(struct pkglist *l) {
