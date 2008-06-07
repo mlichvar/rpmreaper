@@ -489,12 +489,14 @@ void tui() {
 		init_pair(4, COLOR_MAGENTA, COLOR_BLACK);
 		init_pair(5, COLOR_RED, COLOR_BLACK);
 		init_pair(6, COLOR_CYAN, COLOR_BLACK);
+		bkgdset(COLOR_PAIR(2));
 	}
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
 	nonl();
 	curs_set(0);
+	erase();
 
 	pkgs_init(&p);
 	display_help();
