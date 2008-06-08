@@ -618,6 +618,14 @@ void tui() {
 			case 'x':
 				quit = 2;
 				break;
+			/* ^R */
+			case 'R' - 0x40:
+				reread_list(&p, &l);
+				break;
+			/* ^L */
+			case 'L' - 0x40:
+				clear();
+				break;
 			case KEY_RESIZE:
 				l.lines = LINES - 3;
 				scroll_pkglist(&l, 0);
