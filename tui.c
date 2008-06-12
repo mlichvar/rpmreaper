@@ -78,8 +78,17 @@ void display_pkg_status(const struct pkg *pkg) {
 	addch(pkg->status & PKG_BROKEN ? 'B' : pkg->status & PKG_TOBEBROKEN ? 'b' : ' ');
 }
 
-void display_pkg_size(const struct pkg *pkg) {
-	printw("%6dK ",	pkg->size);
+void display_size(uint size, int style) {
+	const char units[] = { 'K', 'M', 'G', 'T' };
+	float s = size;
+	int i;
+
+	for (i = 0; s >= 1000.0 && i + 1 < sizeof (units); i++)
+		s /= 1024.0;
+	printw(style ? (i ? "%6.1f" : "%6.f") : (i ? "%.1f " : "%.f "), s);
+	addch(units[i]);
+	if (!style)
+		addch('B');
 }
 
 void display_help() {
@@ -92,7 +101,11 @@ void display_status(const struct pkgs *p) {
 	attron(COLOR_PAIR(1));
 	move(LINES - 2, 0);
 	hline('-', COLS);
-	printw("---[ Pkgs: %d (%d KB)  Del: %d (%d KB) ]", pkgs_get_size(p), p->pkgs_kbytes, p->delete_pkgs, p->delete_pkgs_kbytes);
+	printw("---[ Pkgs: %d (", pkgs_get_size(p));
+	display_size(p->pkgs_kbytes, 0);
+	printw(")  Del: %d (", p->delete_pkgs);
+	display_size(p->delete_pkgs_kbytes, 0);
+	printw(") ]");
 }
 
 void display_liststatus(const struct pkglist *l) {
@@ -147,7 +160,7 @@ void display_pkgs(const struct pkglist *l, const struct pkgs *p) {
 		hline(' ', COLS);
 		display_pkg_status(pkg);
 		addch(' ');
-		display_pkg_size(pkg);
+		display_size(pkg->size, 1);
 
 		move(i - l->first + 1, 13 + 4 * get_row(l, i)->level);
 		printw("%-25s %s-%s.%s",
