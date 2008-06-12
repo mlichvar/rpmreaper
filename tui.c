@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <regex.h>
 #include <ncurses.h>
 
 #include "rpm.h"
@@ -45,6 +47,8 @@ struct pkglist {
 	int cursor;
 	int lines;
 	int sortby;
+
+	const char *limit;
 };
 
 void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, int s);
@@ -94,9 +98,11 @@ void display_status(const struct pkgs *p) {
 void display_liststatus(const struct pkglist *l) {
 	const char * const sortnames[] = { "name", "flags", "size" };
 
-	if (COLS > 75)
-		mvprintw(LINES - 2, COLS - 20, "(%s)", sortnames[l->sortby]);
-	if (COLS > 60)
+	if (COLS > 78 && l->limit != NULL)
+		mvprintw(LINES - 2, COLS - 27, "(limit)");
+	if (COLS > 68)
+		mvprintw(LINES - 2, COLS - 17, "(%s)", sortnames[l->sortby]);
+	if (COLS > 58)
 		mvprintw(LINES - 2, COLS - 7, "(%d%%)", MIN((l->first + l->lines) * 100 / array_get_size(&l->rows), 100));
 }
 
@@ -382,6 +388,8 @@ static int compare_rows(const void *r1, const void *r2) {
 }
 
 void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, int s) {
+	if (!size)
+		return;
 	pkgs = p;
 	sortby = s;
 	qsort(get_wrow(l, first), size, sizeof (struct row), compare_rows);
@@ -389,16 +397,40 @@ void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, i
 	sortby = 0;
 }
 
-void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby) {
-	uint i;
+void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby, const char *limit) {
+	uint i, j;
+	regex_t reg;
 
 	memset(l, 0, sizeof (struct pkglist));
 	array_init(&l->rows, sizeof (struct row));
+	
+	if (limit != NULL)
+		regcomp(&reg, limit, REG_EXTENDED | REG_NOSUB);
 
-	for (i = 0; i < pkgs_get_size(p); i++)
-		get_wrow(l, i)->pid = i;
+	for (i = j = 0; i < pkgs_get_size(p); i++) {
+		const struct pkg *pkg = pkgs_get(p, i);
+		char nvra[1000];
+
+		if (limit == NULL) {
+			get_wrow(l, j++)->pid = i;
+			continue;
+		}
+		snprintf(nvra, sizeof (nvra), "%s-%s-%s.%s",
+				strings_get(&p->strings, pkg->name),
+				strings_get(&p->strings, pkg->ver),
+				strings_get(&p->strings, pkg->rel),
+				strings_get(&p->strings, pkg->arch));
+		if (regexec(&reg, nvra, 0, NULL, 0))
+			continue;
+		get_wrow(l, j++)->pid = i;
+	}
+
+	if (limit != NULL)
+		regfree(&reg);
+
 	l->lines = LINES - 3;
 	l->sortby = sortby;
+	l->limit = limit;
 	sort_rows(l, p, 0, array_get_size(&l->rows), sortby);
 }
 
@@ -409,6 +441,7 @@ void clean_pkglist(struct pkglist *l) {
 
 void sort(struct pkglist *l, const struct pkgs *p) {
 	int c, s;
+	const char *limit = l->limit;
 
 	display_question("Sort by (f)lags/(n)ame/(s)ize?:");
 	c = getch();
@@ -427,7 +460,7 @@ void sort(struct pkglist *l, const struct pkgs *p) {
 	}
 
 	clean_pkglist(l);
-	init_pkglist(l, p, s);
+	init_pkglist(l, p, s, limit);
 }
 
 void print_pkg(const struct pkgs *p, uint pid) {
@@ -485,15 +518,16 @@ int ask_remove_pkgs(const struct pkgs *p) {
 
 void reread_list(struct pkgs *p, struct pkglist *l) {
 	int sortby = l->sortby;
+	const char *limit = l->limit;
 
 	pkgs_clean(p);
 	clean_pkglist(l);
 	pkgs_init(p);
 	read_list(p);
-	init_pkglist(l, p, sortby);
+	init_pkglist(l, p, sortby, limit);
 }
 
-void tui() {
+void tui(const char *limit) {
 	struct pkglist l;
 	struct pkgs p;
 	int c, quit;
@@ -521,10 +555,10 @@ void tui() {
 	display_status(&p);
 	read_list(&p);
 
-	init_pkglist(&l, &p, SORT_BY_FLAGS);
+	init_pkglist(&l, &p, SORT_BY_FLAGS, limit);
 
 	for (quit = 0; !quit; ) {
-		if (!pkgs_get_size(&p)) {
+		if (!array_get_size(&l.rows)) {
 			display_error_message("Nothing to select.");
 			getch();
 			quit = 2;
@@ -681,6 +715,6 @@ int main(int argc, char **argv) {
 	if (list_flags)
 		list_pkgs(list_flags, verbose);
 	else
-		tui();
+		tui(optind < argc ? argv[optind] : NULL);
 	return 0;
 }
