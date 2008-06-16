@@ -540,6 +540,89 @@ void reread_list(struct pkgs *p, struct pkglist *l) {
 	init_pkglist(l, p, sortby, limit);
 }
 
+char *readline(const char *prompt) {
+	char *buf;
+	int c, size = 16, used = 0, cur = 0, x, quit = 0, o = 0;
+
+	buf = malloc(size);
+	buf[used] = '\0';
+
+	attron(COLOR_PAIR(2));
+	mvprintw(LINES - 1, 0, prompt);
+	curs_set(1);
+	x = getcurx(stdscr);
+
+	while (!quit) {
+		move(LINES - 1, x);
+		clrtoeol();
+		o = x + cur >= COLS ? x + cur - COLS + 1 : 0;
+		addnstr(buf + o, COLS - x);
+		move(LINES - 1, x + cur - o);
+		c = getch();
+		switch (c) {
+			case KEY_ENTER:
+			case '\r':
+			case '\n':
+				quit = 1;
+				break;
+			case 'G' - 0x40:
+				quit = 2;
+				break;
+			case KEY_HOME:
+			case 'A' - 0x40:
+				cur = 0;
+				break;
+			case KEY_END:
+			case 'E' - 0x40:
+				cur = used;
+				break;
+			case 'U' - 0x40:
+				memmove(buf, buf + cur, used - cur + 1);
+				used -= cur;
+				cur = 0;
+				break;
+			case 'K' - 0x40:
+				buf[cur] = '\0';
+				used = cur;
+				break;
+			case KEY_LEFT:
+				if (cur)
+					cur--;
+				break;
+			case KEY_RIGHT:
+				if (cur < used)
+					cur++;
+				break;
+			case KEY_BACKSPACE:
+				if (!cur)
+					break;
+				cur--;
+			case KEY_DC:
+				if (cur >= used)
+					break;
+				memmove(buf + cur, buf + cur + 1, used - cur);
+				used--;
+				break;
+			default:
+				if (c < 0x20 || c > 0x7f)
+					break;
+				while (used + 2 > size)
+					buf = realloc(buf, (size *= 2));
+				memmove(buf + cur + 1, buf + cur, used - cur + 1);
+				buf[cur++] = c;
+				used++;
+		}
+	}
+
+	curs_set(0);
+
+	if (quit > 1) {
+		free(buf);
+		return NULL;
+	}
+	return buf;
+}
+
 void tui(const char *limit) {
 	struct pkglist l;
 	struct pkgs p;
