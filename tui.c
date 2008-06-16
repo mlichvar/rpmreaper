@@ -48,7 +48,7 @@ struct pkglist {
 	int lines;
 	int sortby;
 
-	const char *limit;
+	char *limit;
 };
 
 void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, int s);
@@ -93,7 +93,7 @@ void display_size(uint size, int style) {
 
 void display_help() {
 	attron(COLOR_PAIR(1));
-	mvprintw(0, 0, "q:Quit  d,D:Del  u,U:Undel  r:Req  b:ReqBy  o:Sort  i:Info  c,C:Commit");
+	mvprintw(0, 0, "q:Quit  d,D:Del  u,U:Undel  r:Req  b:ReqBy  o:Sort  i:Info  c,C:Commit  l:Limit");
 	hline(' ', COLS);
 }
 
@@ -111,7 +111,7 @@ void display_status(const struct pkgs *p) {
 void display_liststatus(const struct pkglist *l) {
 	const char * const sortnames[] = { "name", "flags", "size" };
 
-	if (COLS > 78 && l->limit != NULL)
+	if (COLS > 78 && l->limit != NULL && l->limit[0] != '\0')
 		mvprintw(LINES - 2, COLS - 27, "(limit)");
 	if (COLS > 68)
 		mvprintw(LINES - 2, COLS - 17, "(%s)", sortnames[l->sortby]);
@@ -410,21 +410,21 @@ void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, i
 	sortby = 0;
 }
 
-void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby, const char *limit) {
+void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
 	uint i, j;
 	regex_t reg;
 
-	memset(l, 0, sizeof (struct pkglist));
-	array_init(&l->rows, sizeof (struct row));
-	
-	if (limit != NULL)
-		regcomp(&reg, limit, REG_EXTENDED | REG_NOSUB);
+	array_set_size(&l->rows, 0);
+	l->cursor = l->first = 0;
+
+	if (l->limit != NULL)
+		regcomp(&reg, l->limit, REG_EXTENDED | REG_NOSUB);
 
 	for (i = j = 0; i < pkgs_get_size(p); i++) {
 		const struct pkg *pkg = pkgs_get(p, i);
 		char nvra[1000];
 
-		if (limit == NULL) {
+		if (l->limit == NULL) {
 			get_wrow(l, j++)->pid = i;
 			continue;
 		}
@@ -438,42 +438,54 @@ void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby, const cha
 		get_wrow(l, j++)->pid = i;
 	}
 
-	if (limit != NULL)
+	if (l->limit != NULL)
 		regfree(&reg);
+	sort_rows(l, p, 0, array_get_size(&l->rows), l->sortby);
+}
+
+void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby, char *limit) {
+	memset(l, 0, sizeof (struct pkglist));
+	array_init(&l->rows, sizeof (struct row));
 
 	l->lines = LINES - 3;
 	l->sortby = sortby;
 	l->limit = limit;
-	sort_rows(l, p, 0, array_get_size(&l->rows), sortby);
+
+	fill_pkglist(l, p);
 }
 
 void clean_pkglist(struct pkglist *l) {
+	free(l->limit);
 	array_clean(&l->rows);
 	memset(l, 0, sizeof (struct pkglist));
 }
 
-void sort(struct pkglist *l, const struct pkgs *p) {
-	int c, s;
-	const char *limit = l->limit;
+void sort_pkglist(struct pkglist *l, const struct pkgs *p) {
+	int c;
 
 	display_question("Sort by (f)lags/(n)ame/(s)ize?:");
 	c = getch();
 	switch (c) {
 		case 'f':
-			s = SORT_BY_FLAGS;
+			l->sortby = SORT_BY_FLAGS;
 			break;
 		case 'n':
-			s = SORT_BY_NAME;
+			l->sortby = SORT_BY_NAME;
 			break;
 		case 's':
-			s = SORT_BY_SIZE;
+			l->sortby = SORT_BY_SIZE;
 			break;
 		default:
 			return;
 	}
 
-	clean_pkglist(l);
-	init_pkglist(l, p, s, limit);
+	fill_pkglist(l, p);
+}
+
+void limit_pkglist(struct pkglist *l, const struct pkgs *p, char *limit) {
+	free(l->limit);
+	l->limit = limit;
+	fill_pkglist(l, p);
 }
 
 void print_pkg(const struct pkgs *p, uint pid) {
@@ -530,14 +542,10 @@ int ask_remove_pkgs(const struct pkgs *p) {
 }
 
 void reread_list(struct pkgs *p, struct pkglist *l) {
-	int sortby = l->sortby;
-	const char *limit = l->limit;
-
 	pkgs_clean(p);
-	clean_pkglist(l);
 	pkgs_init(p);
 	read_list(p);
-	init_pkglist(l, p, sortby, limit);
+	fill_pkglist(l, p);
 }
 
 char *readline(const char *prompt) {
@@ -627,6 +635,7 @@ void tui(const char *limit) {
 	struct pkglist l;
 	struct pkgs p;
 	int c, quit;
+	char *s;
 
 	initscr();
 	if (has_colors()) {
@@ -651,7 +660,7 @@ void tui(const char *limit) {
 	display_status(&p);
 	read_list(&p);
 
-	init_pkglist(&l, &p, SORT_BY_FLAGS, limit);
+	init_pkglist(&l, &p, SORT_BY_FLAGS, limit != NULL ? strdup(limit) : NULL);
 
 	for (quit = 0; !quit; ) {
 		if (!array_get_size(&l.rows)) {
@@ -740,7 +749,11 @@ void tui(const char *limit) {
 				display_pkg_info(&p, get_row(&l, l.cursor)->pid);
 				break;
 			case 'o':
-				sort(&l, &p);
+				sort_pkglist(&l, &p);
+				break;
+			case 'l':
+				if ((s = readline("Limit: ")) != NULL)
+					limit_pkglist(&l, &p, s);
 				break;
 			case 'q':
 				quit = 1;
