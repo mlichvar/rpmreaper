@@ -61,6 +61,10 @@ struct row *get_wrow(struct pkglist *l, uint r) {
 	return ASGETWPTR(row, &l->rows, r);
 }
 
+uint get_used_pkgs(const struct pkglist *l) {
+	return array_get_size(&l->rows);
+}
+
 void select_color_by_status(const struct pkg *pkg) {
 	if (pkg->status & PKG_DELETE)
 		attron(COLOR_PAIR(4));
@@ -116,7 +120,7 @@ void display_liststatus(const struct pkglist *l) {
 	if (COLS > 68)
 		mvprintw(LINES - 2, COLS - 17, "(%s)", sortnames[l->sortby]);
 	if (COLS > 58)
-		mvprintw(LINES - 2, COLS - 7, "(%d%%)", MIN((l->first + l->lines) * 100 / array_get_size(&l->rows), 100));
+		mvprintw(LINES - 2, COLS - 7, "(%d%%)", l->first + l->lines > get_used_pkgs(l) ? 100 : (l->first + l->lines) * 100 / get_used_pkgs(l));
 }
 
 void display_message(const char *m, int attr) {
@@ -146,7 +150,7 @@ void display_pkg_info(const struct pkgs *p, uint pid) {
 }
 
 void display_pkgs(const struct pkglist *l, const struct pkgs *p) {
-	int i, used = array_get_size(&l->rows);
+	int i, used = get_used_pkgs(l);
 	const struct pkg *pkg;
 
 	for (i = l->first; i - l->first < l->lines && i < used; i++) {
@@ -175,7 +179,7 @@ void display_pkgs(const struct pkglist *l, const struct pkgs *p) {
 }
 
 void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
-	int i, dir, first = l->first, lines = l->lines, used = array_get_size(&l->rows);
+	int i, dir, first = l->first, lines = l->lines, used = get_used_pkgs(l);
 
 	for (i = first, dir = -1; dir <= 1; i += dir, dir += 2) {
 		while (i > 0 && i + 1 < used &&	get_row(l, i)->level != 0)
@@ -243,7 +247,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 }
 
 void move_cursor(struct pkglist *l, int x) {
-	int used = array_get_size(&l->rows);
+	int used = get_used_pkgs(l);
 
 	if (x > 0) {
 		if (l->cursor + x < used)
@@ -264,7 +268,7 @@ void move_cursor(struct pkglist *l, int x) {
 }
 
 void scroll_pkglist(struct pkglist *l, int x) {
-	int used = array_get_size(&l->rows);
+	int used = get_used_pkgs(l);
 
 	if (x > 0) {
 		if (l->first + x >= used)
@@ -290,7 +294,7 @@ void scroll_pkglist(struct pkglist *l, int x) {
 
 int find_parent(const struct pkglist *l) {
 	int level = get_row(l, l->cursor)->level;
-	int used = array_get_size(&l->rows);
+	int used = get_used_pkgs(l);
 	int i;
 
 	if (!level)
@@ -311,7 +315,7 @@ int find_parent(const struct pkglist *l) {
 }
 
 int find_outer_edge(const struct pkglist *l, int x, int flag) {
-	int level = get_row(l, x)->level, used = array_get_size(&l->rows);
+	int level = get_row(l, x)->level, used = get_used_pkgs(l);
 
 	while ((get_row(l, x)->flags & FLAG_REQ && flag & FLAG_REQ) ||
 			(get_row(l, x)->flags & FLAG_REQBY && flag & FLAG_REQBY)) {
@@ -324,9 +328,9 @@ int find_outer_edge(const struct pkglist *l, int x, int flag) {
 }
 
 void move_rows(struct pkglist *l, int from, int where) {
-	array_move(&l->rows, where, from, array_get_size(&l->rows) - from);
+	array_move(&l->rows, where, from, get_used_pkgs(l) - from);
 	if (from > where)
-		array_set_size(&l->rows, array_get_size(&l->rows) - (from - where));
+		array_set_size(&l->rows, get_used_pkgs(l) - (from - where));
 }
 
 void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
@@ -440,7 +444,7 @@ void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
 
 	if (l->limit != NULL)
 		regfree(&reg);
-	sort_rows(l, p, 0, array_get_size(&l->rows), l->sortby);
+	sort_rows(l, p, 0, get_used_pkgs(l), l->sortby);
 }
 
 void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby, char *limit) {
