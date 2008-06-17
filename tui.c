@@ -667,13 +667,6 @@ void tui(const char *limit) {
 	init_pkglist(&l, &p, SORT_BY_FLAGS, limit != NULL ? strdup(limit) : NULL);
 
 	for (quit = 0; !quit; ) {
-		if (!array_get_size(&l.rows)) {
-			display_error_message("Nothing to select.");
-			getch();
-			quit = 2;
-			break;
-		}
-
 		move_cursor(&l, 0);
 
 		erase();
@@ -682,9 +675,54 @@ void tui(const char *limit) {
 		display_help();
 		display_status(&p);
 		display_liststatus(&l);
+
+		if (!get_used_pkgs(&l))
+			display_error_message("Nothing to select.");
+
 		move(l.cursor - l.first + 1, 0);
 
 		c = getch();
+
+		switch (c) {
+			case 'c':
+			case 'C':
+				if (ask_remove_pkgs(&p)) {
+					endwin();
+					if (rpmremove(&p, c == 'c' ? 0 : 1))
+						sleep(2);
+					reread_list(&p, &l);
+				}
+				break;
+			case 'l':
+				if ((s = readline("Limit: ")) != NULL)
+					limit_pkglist(&l, &p, s);
+				break;
+			case 'o':
+				sort_pkglist(&l, &p);
+				break;
+			case 'q':
+				quit = 1;
+				break;
+			case 'x':
+				quit = 2;
+				break;
+			/* ^R */
+			case 'R' - 0x40:
+				reread_list(&p, &l);
+				break;
+			/* ^L */
+			case 'L' - 0x40:
+				clear();
+				break;
+			case KEY_RESIZE:
+				l.lines = LINES - 3;
+				scroll_pkglist(&l, 0);
+				break;
+		}
+
+		if (!get_used_pkgs(&l))
+			continue;
+
 		switch (c) {
 			case 'k':
 			case KEY_UP:
@@ -728,15 +766,6 @@ void tui(const char *limit) {
 			case 'b':
 				toggle_req(&l, &p, 1);
 				break;
-			case 'c':
-			case 'C':
-				if (ask_remove_pkgs(&p)) {
-					endwin();
-					if (rpmremove(&p, c == 'c' ? 0 : 1))
-						sleep(2);
-					reread_list(&p, &l);
-				}
-				break;
 			case 'd':
 				pkgs_delete(&p, get_row(&l, l.cursor)->pid, 0);
 				break;
@@ -751,31 +780,6 @@ void tui(const char *limit) {
 				break;
 			case 'i':
 				display_pkg_info(&p, get_row(&l, l.cursor)->pid);
-				break;
-			case 'o':
-				sort_pkglist(&l, &p);
-				break;
-			case 'l':
-				if ((s = readline("Limit: ")) != NULL)
-					limit_pkglist(&l, &p, s);
-				break;
-			case 'q':
-				quit = 1;
-				break;
-			case 'x':
-				quit = 2;
-				break;
-			/* ^R */
-			case 'R' - 0x40:
-				reread_list(&p, &l);
-				break;
-			/* ^L */
-			case 'L' - 0x40:
-				clear();
-				break;
-			case KEY_RESIZE:
-				l.lines = LINES - 3;
-				scroll_pkglist(&l, 0);
 				break;
 		}
 	}	
