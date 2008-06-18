@@ -41,9 +41,13 @@ void array_clean(struct array *a) {
 	memset(a, 0, sizeof (struct array));
 }
 
+static inline void array_zero_no_check(struct array *a, uint start, uint size) {
+	memset((char *)a->array + start * a->width, 0, size * a->width);
+}
+
 void array_zero(struct array *a, uint start, uint size) {
 	assert(start + size <= a->size);
-	memset((char *)a->array + start * a->width, 0, size * a->width);
+	array_zero_no_check(a, start, size);
 }
 
 static inline unsigned char value_width(uint v) {
@@ -86,29 +90,22 @@ static inline uint array_read(const uint *a, uint i, unsigned char w) {
 }
 
 static void array_resize(struct array *a, unsigned char width, uint size) {
-	while (a->alloced < size) {
-		if (a->alloced == 0)
-			a->alloced = 16;
-		else
-			a->alloced *= 2;
-	}
-	a->array = realloc(a->array, MAX(width, a->width) * a->alloced);
-	if (width > a->width && a->size > 0) {
-		uint i;
+	uint i, alloc = a->alloced;
 
-		i = a->size;
-	        do {
-			i--;
-			array_write(a->array, i, width, array_read(a->array, i, a->width));
-		} while (i > 0);
-	}
+	while (alloc < size)
+		alloc = !alloc ? 16 : alloc * 2;
 
-	if (a->width < width)
+	a->array = realloc(a->array, MAX(width, a->width) * alloc);
+
+	if (width > a->width) {
+		for (i = a->size; i > 0; i--)
+			array_write(a->array, i - 1, width, array_read(a->array, i - 1, a->width));
 		a->width = width;
+		array_zero_no_check(a, a->size, alloc - a->size);
+	} else
+		array_zero_no_check(a, a->alloced, alloc - a->alloced);
 
-	if (a->alloced > a->size)
-		memset((char *)a->array + a->size * a->width, 0,
-				(a->alloced - a->size) * a->width);
+	a->alloced = alloc;
 }
 
 void array_set(struct array *a, uint index, uint value) {
@@ -158,11 +155,10 @@ inline const void *array_get_ptr(const struct array *a, uint index) {
 void array_set_size(struct array *a, uint size) {
 	if (size > a->alloced) {
 		a->array = realloc(a->array, a->width * size);
-		memset((char *)a->array + a->alloced * a->width, 0,
-				(size - a->alloced) * a->width);
+		array_zero_no_check(a, a->alloced, size - a->alloced);
 		a->alloced = size;
 	} else if (size < a->size)
-		array_zero(a, size, a->size - size);
+		array_zero_no_check(a, size, a->size - size);
 
 	a->size = size;
 }
