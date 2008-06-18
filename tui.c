@@ -267,6 +267,18 @@ void move_cursor(struct pkglist *l, int x) {
 		l->first = l->cursor - l->lines + 1;
 }
 
+void move_to_next_leaf(struct pkglist *l, const struct pkgs *p, int dir) {
+	uint c, f, used = get_used_pkgs(l);
+
+	for (c = (l->cursor + dir + used) % used; c != l->cursor; c = (c + dir + used) % used) {
+		f = pkgs_get(p, get_row(l, c)->pid)->status;
+		if (f &	(PKG_LEAF | PKG_PARTLEAF) && !(f & PKG_DELETE)) {
+			l->cursor = c;
+			return;
+		}
+	}
+}
+
 void scroll_pkglist(struct pkglist *l, int x) {
 	int used = get_used_pkgs(l);
 
@@ -759,6 +771,12 @@ void tui(const char *limit) {
 				break;
 			case KEY_END:
 				scroll_pkglist(&l, 1000000);
+				break;
+			case KEY_BTAB:
+				move_to_next_leaf(&l, &p, -1);
+				break;
+			case '\t':
+				move_to_next_leaf(&l, &p, 1);
 				break;
 			case 'r':
 				toggle_req(&l, &p, 0);
