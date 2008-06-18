@@ -157,12 +157,13 @@ inline const void *array_get_ptr(const struct array *a, uint index) {
 
 void array_set_size(struct array *a, uint size) {
 	if (size > a->alloced) {
+		a->array = realloc(a->array, a->width * size);
+		memset((char *)a->array + a->alloced * a->width, 0,
+				(size - a->alloced) * a->width);
 		a->alloced = size;
-		a->array = realloc(a->array, a->width * a->alloced);
-	}
-	if (a->alloced > a->size)
-		memset((char *)a->array + a->size * a->width, 0,
-				(a->alloced - a->size) * a->width);
+	} else if (size < a->size)
+		array_zero(a, size, a->size - size);
+
 	a->size = size;
 }
 
