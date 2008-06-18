@@ -504,6 +504,33 @@ void limit_pkglist(struct pkglist *l, const struct pkgs *p, char *limit) {
 	fill_pkglist(l, p);
 }
 
+void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchre, int dir) {
+	uint c, used = get_used_pkgs(l);
+	regex_t reg;
+
+	if (searchre == NULL)
+		return;
+
+	regcomp(&reg, searchre, REG_EXTENDED | REG_NOSUB);
+
+	for (c = (l->cursor + dir + used) % used; c != l->cursor; c = (c + dir + used) % used) {
+		const struct pkg *pkg = pkgs_get(p, get_row(l, c)->pid);
+		char nvra[1000];
+
+		snprintf(nvra, sizeof (nvra), "%s-%s-%s.%s",
+				strings_get(&p->strings, pkg->name),
+				strings_get(&p->strings, pkg->ver),
+				strings_get(&p->strings, pkg->rel),
+				strings_get(&p->strings, pkg->arch));
+		if (!regexec(&reg, nvra, 0, NULL, 0)) {
+			l->cursor = c;
+			break;
+		}
+	}
+
+	regfree(&reg);
+}
+
 void print_pkg(const struct pkgs *p, uint pid) {
 	const struct pkg *pkg = pkgs_get(p, pid);
 	printf("%s-%s-%s.%s",
@@ -650,8 +677,8 @@ char *readline(const char *prompt) {
 void tui(const char *limit) {
 	struct pkglist l;
 	struct pkgs p;
-	int c, quit;
-	char *s;
+	int c, quit, searchdir = 0;
+	char *s, *searchre = NULL;
 
 	initscr();
 	if (has_colors()) {
@@ -799,6 +826,19 @@ void tui(const char *limit) {
 			case 'i':
 				display_pkg_info(&p, get_row(&l, l.cursor)->pid);
 				break;
+			case '/':
+			case '?':
+				if ((s = readline("Search: ")) == NULL)
+					break;
+				free(searchre);
+				searchre = s;
+				searchdir = (c == '/') ? 1 : -1;
+			case 'n':
+				search_pkglist(&l, &p, searchre, searchdir);
+				break;
+			case 'N':
+				search_pkglist(&l, &p, searchre, -searchdir);
+				break;
 		}
 	}	
 	if (quit < 2) {
@@ -812,6 +852,7 @@ void tui(const char *limit) {
 		endwin();
 	clean_pkglist(&l);
 	pkgs_clean(&p);
+	free(searchre);
 }
 
 void list_pkgs(int flags, int verbose) {
