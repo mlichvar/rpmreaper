@@ -437,20 +437,13 @@ void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
 		regcomp(&reg, l->limit, REG_EXTENDED | REG_NOSUB);
 
 	for (i = j = 0; i < pkgs_get_size(p); i++) {
-		const struct pkg *pkg = pkgs_get(p, i);
-		char nvra[1000];
+		if (l->limit != NULL) {
+			char cname[1000];
 
-		if (l->limit == NULL) {
-			get_wrow(l, j++)->pid = i;
-			continue;
+			rpmcname(cname, sizeof (cname), p, i);
+			if (regexec(&reg, cname, 0, NULL, 0))
+				continue;
 		}
-		snprintf(nvra, sizeof (nvra), "%s-%s-%s.%s",
-				strings_get(&p->strings, pkg->name),
-				strings_get(&p->strings, pkg->ver),
-				strings_get(&p->strings, pkg->rel),
-				strings_get(&p->strings, pkg->arch));
-		if (regexec(&reg, nvra, 0, NULL, 0))
-			continue;
 		get_wrow(l, j++)->pid = i;
 	}
 
@@ -514,15 +507,10 @@ void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchr
 	regcomp(&reg, searchre, REG_EXTENDED | REG_NOSUB);
 
 	for (c = (l->cursor + dir + used) % used; c != l->cursor; c = (c + dir + used) % used) {
-		const struct pkg *pkg = pkgs_get(p, get_row(l, c)->pid);
-		char nvra[1000];
+		char cname[1000];
 
-		snprintf(nvra, sizeof (nvra), "%s-%s-%s.%s",
-				strings_get(&p->strings, pkg->name),
-				strings_get(&p->strings, pkg->ver),
-				strings_get(&p->strings, pkg->rel),
-				strings_get(&p->strings, pkg->arch));
-		if (!regexec(&reg, nvra, 0, NULL, 0)) {
+		rpmcname(cname, sizeof (cname), p, get_row(l, c)->pid);
+		if (!regexec(&reg, cname, 0, NULL, 0)) {
 			l->cursor = c;
 			break;
 		}
@@ -532,12 +520,10 @@ void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchr
 }
 
 void print_pkg(const struct pkgs *p, uint pid) {
-	const struct pkg *pkg = pkgs_get(p, pid);
-	printf("%s-%s-%s.%s",
-			strings_get(&p->strings, pkg->name),
-			strings_get(&p->strings, pkg->ver),
-			strings_get(&p->strings, pkg->rel),
-			strings_get(&p->strings, pkg->arch));
+	char cname[1000];
+
+	rpmcname(cname, sizeof (cname), p, pid);
+	printf("%s", cname);
 }
 
 void print_pkgs(const struct pkgs *p, int flags, int verbose, int oneline) {

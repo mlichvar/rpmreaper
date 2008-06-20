@@ -218,57 +218,75 @@ int read_rpmdb(struct pkgs *p)
 	return 1;
 }
 
-int rpminfo(const struct pkgs *p, uint pid) {
-	char cmd[1000];
+int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid) {
+	const char *n, *v, *r, *a;
 	const struct strings *s = &p->strings;
 	const struct pkg *pkg = pkgs_get(p, pid);
 
-	snprintf(cmd, sizeof (cmd), "rpm -qi '%s-%s-%s.%s' | less",
-			strings_get(s, pkg->name),
-			strings_get(s, pkg->ver),
-			strings_get(s, pkg->rel),
-			strings_get(s, pkg->arch));
+	n = strings_get(s, pkg->name);
+	v = strings_get(s, pkg->ver);
+	r = strings_get(s, pkg->rel);
+	a = strings_get(s, pkg->arch);
+
+	if (a && a[0] != '\0')
+		return snprintf(str, size, "%s-%s-%s.%s", n, v, r, a);
+	else
+		return snprintf(str, size, "%s-%s-%s", n, v, r);
+}
+
+int rpminfo(const struct pkgs *p, uint pid) {
+	char cmd[1000];
+	int j, len, r;
+
+	j = 0;
+	len = sizeof (cmd);
+	r = snprintf(cmd + j, len, "rpm -qi '");
+	if (r < 0 || r >= len)
+		return 1;
+	j += r;
+	len -= r;
+	r = rpmcname(cmd + j, len, p, pid);
+	if (r < 0 || r >= len)
+		return 1;
+	j += r;
+	len -= r;
+	r = snprintf(cmd + j, len, "' | less");
+	if (r < 0 || r >= len)
+		return 1;
 	return system(cmd);
 }
 
 int rpmremove(const struct pkgs *p, int force) {
 	uint i;
-	int len, j, r;
+	int len, j = 0, r;
 	char *cmd;
-	const struct strings *s = &p->strings;
-	const struct pkg *pkg;
- 
-	for (i = len = 0; i < pkgs_get_size(p); i++) {
-	       	pkg = pkgs_get(p, i);
-		if (!(pkg->status & PKG_DELETE))
-			continue;
-		len += 6 + strlen(strings_get(s, pkg->name)) +
-			strlen(strings_get(s, pkg->ver)) +
-			strlen(strings_get(s, pkg->rel)) +
-			strlen(strings_get(s, pkg->arch));
-	}
 
-	j = 0;
-	len += 100;
+	len = 64;
 	cmd = malloc(len);
-	r = snprintf(cmd, len, force ? "rpm -e --nodeps" : "rpm -e");
+
+	r = snprintf(cmd, len, force ? "rpm -e --nodeps " : "rpm -e ");
 	if (r < 0 || r >= len)
 		return 1;
 	j += r; len -= r;
 
 	for (i = 0; i < pkgs_get_size(p); i++) {
-	       	pkg = pkgs_get(p, i);
-		if (!(pkg->status & PKG_DELETE))
+		if (!(pkgs_get(p, i)->status & PKG_DELETE))
 			continue;
-		r = snprintf(cmd + j, len, " %s-%s-%s.%s",
-			strings_get(s, pkg->name),
-			strings_get(s, pkg->ver),
-			strings_get(s, pkg->rel),
-			strings_get(s, pkg->arch));
-		if (r < 0 || r >= len)
+		r = rpmcname(cmd + j, len, p, i);
+		if (r < 0)
 			return 1;
-		j += r; len -= r;
+	       	if (r + 1 >= len) {
+			cmd = realloc(cmd, (j + len) * 2);
+			len += j + len;
+			/* try again */
+			i--;
+			continue;
+		}
+		j += r + 1; len -= r + 1;
+		cmd[j - 1] = ' ';
 	}
+
+	cmd[j - 1] = '\0';
 
 	printf("Removing %d packages (%d KB).\n", p->delete_pkgs, p->delete_pkgs_kbytes);
 	fflush(stdout);

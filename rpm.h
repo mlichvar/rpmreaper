@@ -21,6 +21,7 @@
 #include "pkg.h"
 
 int read_rpmdb(struct pkgs *);
+int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid);
 int rpminfo(const struct pkgs *p, uint pid);
 int rpmremove(const struct pkgs *p, int force);
 
