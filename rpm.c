@@ -236,23 +236,22 @@ int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid) {
 
 int rpminfo(const struct pkgs *p, uint pid) {
 	char cmd[1000];
-	int j, len, r;
+	int i, j, len, r;
+	const char *const strs[] = { "(rpm -qi ", NULL,
+		";echo;echo Files:;rpm -ql ", NULL, ") | less" };
 
 	j = 0;
 	len = sizeof (cmd);
-	r = snprintf(cmd + j, len, "rpm -qi '");
-	if (r < 0 || r >= len)
-		return 1;
-	j += r;
-	len -= r;
-	r = rpmcname(cmd + j, len, p, pid);
-	if (r < 0 || r >= len)
-		return 1;
-	j += r;
-	len -= r;
-	r = snprintf(cmd + j, len, "' | less");
-	if (r < 0 || r >= len)
-		return 1;
+	for (i = 0; i < sizeof (strs) / sizeof (char *); i++) {
+		if (strs[i])
+			r = snprintf(cmd + j, len, strs[i]);
+		else
+			r = rpmcname(cmd + j, len, p, pid);
+		if (r < 0 || r >= len)
+			return 1;
+		j += r;
+		len -= r;
+	}
 	return system(cmd);
 }
 
