@@ -97,8 +97,9 @@ void display_size(uint size, int style) {
 
 void display_help() {
 	attron(COLOR_PAIR(1));
-	mvprintw(0, 0, "q:Quit  d,D:Del  u,U:Undel  r:Req  b:ReqBy  o:Sort  i:Info  c,C:Commit  l:Limit");
+	move(0, 0);
 	hline(' ', COLS);
+	addnstr("q:Quit  d,D:Del  u,U:Undel  r:Req  b:ReqBy  o:Sort  i:Info  c,C:Commit  l:Limit", COLS);
 }
 
 void display_status(const struct pkgs *p) {
