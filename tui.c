@@ -740,6 +740,10 @@ void tui(const char *limit) {
 			case 'L' - 0x40:
 				clear();
 				break;
+			case KEY_F(1):
+				endwin();
+				system("man rpmreaper");
+				break;
 			case KEY_RESIZE:
 				l.lines = LINES - 3;
 				scroll_pkglist(&l, 0);
