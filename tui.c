@@ -434,8 +434,8 @@ void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
 	array_set_size(&l->rows, 0);
 	l->cursor = l->first = 0;
 
-	if (l->limit != NULL)
-		regcomp(&reg, l->limit, REG_EXTENDED | REG_NOSUB);
+	if (l->limit != NULL && regcomp(&reg, l->limit, REG_EXTENDED | REG_NOSUB))
+		return;
 
 	for (i = j = 0; i < pkgs_get_size(p); i++) {
 		if (l->limit != NULL) {
@@ -502,10 +502,8 @@ void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchr
 	uint c, used = get_used_pkgs(l);
 	regex_t reg;
 
-	if (searchre == NULL)
+	if (searchre == NULL || regcomp(&reg, searchre, REG_EXTENDED | REG_NOSUB))
 		return;
-
-	regcomp(&reg, searchre, REG_EXTENDED | REG_NOSUB);
 
 	for (c = (l->cursor + dir + used) % used; c != l->cursor; c = (c + dir + used) % used) {
 		char cname[1000];
