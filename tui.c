@@ -280,6 +280,16 @@ void move_to_next_leaf(struct pkglist *l, const struct pkgs *p, int dir) {
 	}
 }
 
+void move_to_pid(struct pkglist *l, uint pid) {
+	uint i;
+
+	for (i = 0; i < get_used_pkgs(l); i++)
+		if (!get_row(l, i)->level && get_row(l, i)->pid == pid) {
+			l->cursor = i;
+			break;
+		}
+}
+
 void scroll_pkglist(struct pkglist *l, int x) {
 	int used = get_used_pkgs(l);
 
@@ -471,6 +481,7 @@ void clean_pkglist(struct pkglist *l) {
 }
 
 void sort_pkglist(struct pkglist *l, const struct pkgs *p) {
+	uint cpid;
 	int c;
 
 	display_question("Sort by (f)lags/(n)ame/(s)ize?:");
@@ -489,13 +500,20 @@ void sort_pkglist(struct pkglist *l, const struct pkgs *p) {
 			return;
 	}
 
+	cpid = l->cursor < get_used_pkgs(l) ? get_row(l, l->cursor)->pid : -1;
 	fill_pkglist(l, p);
+	move_to_pid(l, cpid);
 }
 
 void limit_pkglist(struct pkglist *l, const struct pkgs *p, char *limit) {
+	uint cpid;
+
 	free(l->limit);
 	l->limit = limit;
+
+	cpid = l->cursor < get_used_pkgs(l) ? get_row(l, l->cursor)->pid : -1;
 	fill_pkglist(l, p);
+	move_to_pid(l, cpid);
 }
 
 void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchre, int dir) {
