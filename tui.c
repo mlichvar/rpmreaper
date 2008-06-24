@@ -288,7 +288,7 @@ void move_to_pid(struct pkglist *l, uint pid) {
 void scroll_pkglist(struct pkglist *l, int x) {
 	int used = get_used_pkgs(l);
 
-	if ((x > 0 && (l->first + x >= used || l->cursor < l->context)) ||
+	if ((x > 0 && (l->first + x >= used || l->cursor + x <= l->context)) ||
 			(x < 0 && l->first + x < 0)) {
 		move_cursor(l, x);
 		return;
