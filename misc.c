@@ -221,7 +221,7 @@ void hashtable_clean(struct hashtable *h) {
 }
 
 static int hashtable_need_resize(const struct hashtable *h) {
-	return h->load * 2 + 1 > array_get_size(&h->table);
+	return h->load * 2 + 1 >= array_get_size(&h->table);
 }
 
 static inline uint getslot(uint hash, uint i, uint size) {
@@ -262,7 +262,7 @@ int hashtable_resize(struct hashtable *h) {
 
 	array_zero(&h->table, 0, size);
 
-	while (h->load * 2 + 1 > size)
+	while (h->load * 2 + 1 >= size)
 		size = size ? size * 2 : 16;
 
 	array_set_size(&h->table, size);
