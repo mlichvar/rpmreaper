@@ -315,26 +315,26 @@ void scroll_pkglist(struct pkglist *l, int x) {
 		l->cursor = l->first + l->lines - 1;
 }
 
-int find_parent(const struct pkglist *l) {
-	int level = get_row(l, l->cursor)->level;
+int find_parent(const struct pkglist *l, int x) {
+	int level = get_row(l, x)->level;
 	int used = get_used_pkgs(l);
 	int i;
 
 	if (!level)
-		return l->cursor;
-	for (i = l->cursor; i >= 0; i--)
+		return x;
+	for (i = x; i >= 0; i--)
 		if (get_row(l, i)->level + 1 == level) {
 			if (get_row(l, i)->flags & FLAG_REQ)
 				return i;
 			break;
 		}
-	for (i = l->cursor; i < used; i++)
+	for (i = x; i < used; i++)
 		if (get_row(l, i)->level + 1 == level) {
 			if (get_row(l, i)->flags & FLAG_REQBY)
 				return i;
 			break;
 		}
-	return l->cursor;
+	return x;
 }
 
 int find_outer_edge(const struct pkglist *l, int x, int flag) {
@@ -587,11 +587,82 @@ int ask_remove_pkgs(const struct pkgs *p) {
 	return 1;
 }
 
+struct selection {
+	struct strings deleted;
+};
+
+void save_selection(struct selection *s, const struct pkgs *p) {
+	uint i;
+	char cname[RPMMAXCNAME];
+
+	strings_init(&s->deleted);
+
+	for (i = 0; i < pkgs_get_size(p); i++) {
+		if (!(pkgs_get(p, i)->status & PKG_DELETE))
+			continue;
+		rpmcname(cname, sizeof (cname), p, i);
+		strings_add(&s->deleted, cname);
+	}
+}
+
+void load_selection(struct selection *s, struct pkgs *p) {
+	uint i;
+	char cname[RPMMAXCNAME];
+
+	for (i = 0; i < pkgs_get_size(p); i++) {
+		rpmcname(cname, sizeof (cname), p, i);
+		if (strings_get_id(&s->deleted, cname) == -1)
+			continue;
+		pkgs_delete(p, i, 1);
+	}
+}
+
+void clean_selection(struct selection *s) {
+	strings_clean(&s->deleted);
+}
+
+void save_cursor(char *c, int size, const struct pkglist *l, const struct pkgs *p) {
+	int i, j;
+
+	c[0] = '\0';
+	if (l->cursor >= get_used_pkgs(l))
+		return;
+	for (i = j = l->cursor; (j = find_parent(l, i)) != i; i = j)
+		;
+
+	rpmcname(c, size, p, get_row(l, i)->pid);
+}
+
+void load_cursor(const char *c, struct pkglist *l, const struct pkgs *p) {
+	uint i;
+	char cname[RPMMAXCNAME];
+
+	for (i = 0; i < get_used_pkgs(l); i++) {
+		rpmcname(cname, sizeof (cname), p, get_row(l, i)->pid);
+		if (!strcmp(cname, c)) {
+			l->cursor = i;
+			return;
+		}
+	}
+}
+
 void reread_list(struct pkgs *p, struct pkglist *l) {
+	struct selection s;
+	char cursor[RPMMAXCNAME];
+
+	save_selection(&s, p);
+	save_cursor(cursor, sizeof (cursor), l, p);
+
 	pkgs_clean(p);
 	pkgs_init(p);
 	read_list(p);
+
+	load_selection(&s, p);
+	clean_selection(&s);
+
 	fill_pkglist(l, p);
+
+	load_cursor(cursor, l, p);
 }
 
 char *readline(const char *prompt) {
@@ -780,7 +851,7 @@ void tui(const char *limit) {
 				break;
 			case 'h':
 			case KEY_LEFT:
-				move_cursor(&l, find_parent(&l) - l.cursor);
+				l.cursor = find_parent(&l, l.cursor);
 				break;
 			case KEY_PPAGE:
 				scroll_pkglist(&l, -l.lines);
