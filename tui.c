@@ -449,7 +449,7 @@ void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
 
 	for (i = j = 0; i < pkgs_get_size(p); i++) {
 		if (l->limit != NULL) {
-			char cname[1000];
+			char cname[RPMMAXCNAME];
 
 			rpmcname(cname, sizeof (cname), p, i);
 			if (regexec(&reg, cname, 0, NULL, 0))
@@ -524,7 +524,7 @@ void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchr
 		return;
 
 	for (c = (l->cursor + dir + used) % used; c != l->cursor; c = (c + dir + used) % used) {
-		char cname[1000];
+		char cname[RPMMAXCNAME];
 
 		rpmcname(cname, sizeof (cname), p, get_row(l, c)->pid);
 		if (!regexec(&reg, cname, 0, NULL, 0)) {
@@ -537,7 +537,7 @@ void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchr
 }
 
 void print_pkg(const struct pkgs *p, uint pid) {
-	char cname[1000];
+	char cname[RPMMAXCNAME];
 
 	rpmcname(cname, sizeof (cname), p, pid);
 	printf("%s", cname);
@@ -572,7 +572,7 @@ void print_pkgs(const struct pkgs *p, int flags, int verbose, int oneline) {
 
 void read_list(struct pkgs *p) {
 	display_info_message("Reading rpmdb...");
-	read_rpmdb(p);
+	rpmreaddb(p);
 	display_info_message("Matching deps...");
 	pkgs_match_deps(p);
 	display_info_message(NULL);
@@ -866,7 +866,7 @@ void list_pkgs(int flags, int verbose) {
 	struct pkgs p;
 
 	pkgs_init(&p);
-	read_rpmdb(&p);
+	rpmreaddb(&p);
 	pkgs_match_deps(&p);
 	print_pkgs(&p, flags, verbose, 0);
 	pkgs_clean(&p);

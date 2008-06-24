@@ -20,7 +20,9 @@
 
 #include "pkg.h"
 
-int read_rpmdb(struct pkgs *);
+#define RPMMAXCNAME 1000
+
+int rpmreaddb(struct pkgs *p);
 int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid);
 int rpminfo(const struct pkgs *p, uint pid);
 int rpmremove(const struct pkgs *p, int force);

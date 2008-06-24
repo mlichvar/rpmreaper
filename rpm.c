@@ -197,7 +197,7 @@ static void pass2(struct pkgs *p, rpmts ts) {
 	strings_clean(&basenames);
 }
 
-int read_rpmdb(struct pkgs *p)
+int rpmreaddb(struct pkgs *p)
 {
 	poptContext context;
 	rpmts ts;
