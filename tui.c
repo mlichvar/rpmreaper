@@ -46,6 +46,7 @@ struct pkglist {
 	int first;
 	int cursor;
 	int lines;
+	int context;
 	int sortby;
 
 	char *limit;
@@ -250,22 +251,16 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 void move_cursor(struct pkglist *l, int x) {
 	int used = get_used_pkgs(l);
 
-	if (x > 0) {
-		if (l->cursor + x < used)
-			l->cursor += x;
-		else
-			l->cursor = used - 1;
-	} else {
-		if (l->cursor > -x)
-			l->cursor += x;
-		else
-			l->cursor = 0;
-	}
+	if (used < 1)
+		return;
 
-	if (l->cursor < l->first)
-		l->first = l->cursor;
-	else if (l->cursor >= l->first + l->lines)
-		l->first = l->cursor - l->lines + 1;
+	l->cursor += x;
+	l->cursor = MIN(l->cursor, used - 1);
+	l->cursor = MAX(l->cursor, 0);
+
+	l->first = MIN(l->first, l->cursor - l->context);
+	l->first = MAX(l->first, 0);
+	l->first = MAX(l->first, l->cursor + l->context + 1 - l->lines);
 }
 
 void move_to_next_leaf(struct pkglist *l, const struct pkgs *p, int dir) {
@@ -293,26 +288,17 @@ void move_to_pid(struct pkglist *l, uint pid) {
 void scroll_pkglist(struct pkglist *l, int x) {
 	int used = get_used_pkgs(l);
 
-	if (x > 0) {
-		if (l->first + x >= used)
-			move_cursor(l, x);
-		else if (l->first + x < used)
-			l->first += x;
-		else
-			l->first = (used > l->lines) ? used - 1 - l->lines : 0;
-	} else {
-		if (l->first == 0 || l->first + l->lines < -x )
-			move_cursor(l, x);
-		else if (l->first > -x)
-			l->first += x;
-		else
-			l->first = 0;
+	if ((x > 0 && (l->first + x >= used || l->cursor < l->context)) ||
+			(x < 0 && l->first + x < 0)) {
+		move_cursor(l, x);
+		return;
 	}
 
-	if (l->cursor < l->first)
-		l->cursor = l->first;
-	else if (l->cursor >= l->first + l->lines)
-		l->cursor = l->first + l->lines - 1;
+	l->first += x;
+	l->cursor = MAX(l->cursor, l->first + l->context);
+	l->cursor = MIN(l->cursor, used - 1);
+	l->cursor = MIN(l->cursor, l->first + l->lines - l->context - 1);
+	l->cursor = MAX(l->cursor, 0);
 }
 
 int find_parent(const struct pkglist *l, int x) {
@@ -463,14 +449,19 @@ void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
 	sort_rows(l, p, 0, get_used_pkgs(l), l->sortby);
 }
 
+void stretch_pkglist(struct pkglist *l) {
+	l->lines = MAX(LINES - 3, 0);
+	l->context = MIN((l->lines - 1) / 2, 3);
+}
+
 void init_pkglist(struct pkglist *l, const struct pkgs *p, int sortby, char *limit) {
 	memset(l, 0, sizeof (struct pkglist));
 	array_init(&l->rows, sizeof (struct row));
 
-	l->lines = LINES - 3;
 	l->sortby = sortby;
 	l->limit = limit;
 
+	stretch_pkglist(l);
 	fill_pkglist(l, p);
 }
 
@@ -832,12 +823,11 @@ void tui(const char *limit) {
 				system("man rpmreaper");
 				break;
 			case KEY_RESIZE:
-				l.lines = LINES - 3;
-				scroll_pkglist(&l, 0);
+				stretch_pkglist(&l);
 				break;
 		}
 
-		if (!get_used_pkgs(&l))
+		if (!get_used_pkgs(&l) || l.lines < 1)
 			continue;
 
 		switch (c) {
@@ -872,10 +862,10 @@ void tui(const char *limit) {
 				scroll_pkglist(&l, l.lines / 2);
 				break;
 			case KEY_HOME:
-				scroll_pkglist(&l, -1000000);
+				l.cursor = 0;
 				break;
 			case KEY_END:
-				scroll_pkglist(&l, 1000000);
+				l.cursor = get_used_pkgs(&l) - 1;
 				break;
 			case KEY_BTAB:
 				move_to_next_leaf(&l, &p, -1);
