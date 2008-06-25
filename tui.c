@@ -660,11 +660,11 @@ void commit(struct pkgs *p, struct pkglist *l, int force) {
 	if (ask_remove_pkgs(p)) {
 		endwin();
 		if (rpmremove(p, force)) {
-			char buf[100];
+			char buf[100], *d;
 
 			printf("\nPress Enter to continue.");
 			fflush(stdout);
-			fgets(buf, sizeof (buf), stdin);
+			d = fgets(buf, sizeof (buf), stdin);
 		}
 		reread_list(p, l);
 	}
@@ -829,7 +829,8 @@ void tui(const char *limit) {
 				break;
 			case KEY_F(1):
 				endwin();
-				system("man rpmreaper");
+				if (system("man rpmreaper"))
+					;
 				break;
 			case KEY_RESIZE:
 				stretch_pkglist(&l);
