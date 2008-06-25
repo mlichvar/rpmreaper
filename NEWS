@@ -1,0 +1,18 @@
+0.1.4 (2008-06-25)
+- support reloading, limiting and searching in package list
+- display list position, sort and limit mode
+- preserve selection and cursor when reloading package list
+- sort subtrees
+- add more size multipliers
+- support jumping to next/previous leaf with TAB/BTAB keys
+- fix handling of packages which have no arch
+- add file list to package info
+- improve scrolling
+- wait for Enter when rpm -e fails
+- bind "man rpmreaper" to F1
+- set background color to black
+- support screen redrawing
+- support -h option
+
+0.1.3 (2008-06-03)
+- initial release
