@@ -945,7 +945,7 @@ void list_pkgs(int flags, int verbose) {
 int main(int argc, char **argv) {
 	int opt, list_flags = 0, verbose = 0;
 
-	while ((opt = getopt(argc, argv, "Llbav")) != -1) {
+	while ((opt = getopt(argc, argv, "Llbavh")) != -1) {
 		switch (opt) {
 			case 'L':
 				list_flags |= PKG_LEAF;
@@ -962,6 +962,16 @@ int main(int argc, char **argv) {
 			case 'v':
 				verbose = 1;
 				break;
+			case 'h':
+			default:
+				printf("usage: rpmreaper [options] | [limit]\n");
+				printf("  -a	list installed packages\n");
+				printf("  -L	list leaf packages\n");
+				printf("  -l	list partial leaf packages\n");
+				printf("  -b	list broken packages\n");
+				printf("  -v	verbose listing\n");
+				printf("  -h	print usage\n");
+				return 0;
 		}
 	}
 

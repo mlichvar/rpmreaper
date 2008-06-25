@@ -3,7 +3,7 @@
 rpmreaper \- A tool for removing unnecessary packages from system
 
 .SH SYNOPSIS
-\fBrpmreaper\fR [\fB-alLv\fR] | [\fIlimit\fR]
+\fBrpmreaper\fR [\fB-alLvh\fR] | [\fIlimit\fR]
 
 .SH DESCRIPTION
 rpmreaper is a simple ncurses application with a mutt-like interface that
@@ -26,6 +26,9 @@ List broken packages.
 .TP 8
 \fB-v\fR
 Verbose listing. 
+.TP 8
+\fB-h\fR
+Print help.
 .RE
 
 The ncurses interface is used when started without any option. A regular
