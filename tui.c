@@ -656,6 +656,20 @@ void reread_list(struct pkgs *p, struct pkglist *l) {
 	load_cursor(cursor, l, p);
 }
 
+void commit(struct pkgs *p, struct pkglist *l, int force) {
+	if (ask_remove_pkgs(p)) {
+		endwin();
+		if (rpmremove(p, force)) {
+			char buf[100];
+
+			printf("\nPress Enter to continue.");
+			fflush(stdout);
+			fgets(buf, sizeof (buf), stdin);
+		}
+		reread_list(p, l);
+	}
+}
+
 char *readline(const char *prompt) {
 	char *buf;
 	int c, size = 16, used = 0, cur = 0, x, quit = 0, o = 0;
@@ -790,12 +804,7 @@ void tui(const char *limit) {
 		switch (c) {
 			case 'c':
 			case 'C':
-				if (ask_remove_pkgs(&p)) {
-					endwin();
-					if (rpmremove(&p, c == 'c' ? 0 : 1))
-						sleep(2);
-					reread_list(&p, &l);
-				}
+				commit(&p, &l, c == 'c' ? 0 : 1);
 				break;
 			case 'l':
 				if ((s = readline("Limit: ")) != NULL)
