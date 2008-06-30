@@ -107,4 +107,7 @@ void sets_unhash(struct sets *sets);
 
 void sets_merge(struct sets *dest, const struct sets *source);
 void sets_clone(struct sets *dest, const struct sets *source);
+
+int sets_subsetcmp(const struct sets *sets1, uint set1, uint subset1,
+		const struct sets *sets2, uint set2, uint subset2);
 #endif

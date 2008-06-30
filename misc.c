@@ -664,3 +664,26 @@ void sets_clone(struct sets *dest, const struct sets *source) {
 	array_clone(&dest->sets_size, &source->sets_size);
 	array_clone(&dest->subsets, &source->subsets);
 }
+
+int sets_subsetcmp(const struct sets *sets1, uint set1, uint subset1,
+		const struct sets *sets2, uint set2, uint subset2) {
+	uint i, s, first1, first2, sub_first1, sub_first2;
+
+	sub_first1 = subset_get_first(sets1, set1, subset1);
+	sub_first2 = subset_get_first(sets2, set2, subset2);
+
+	s = subset_get_last(sets1, set1, subset1) - sub_first1;
+
+	if (subset_get_last(sets2, set2, subset2) - sub_first2 != s)
+		return 1;
+
+	first1 = array_get(&sets1->sets_first, set1);
+	first2 = array_get(&sets2->sets_first, set2);
+
+	for (i = 0; i < s; i++)
+		if (array_get(&sets1->ints, first1 + sub_first1 + i) !=
+				array_get(&sets2->ints, first2 + sub_first2 + i))
+			return 1;
+
+	return 0;
+}

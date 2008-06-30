@@ -208,6 +208,10 @@ static void fill_required(struct pkgs *p, uint pid) {
 				if (reqs && sets_subset_has(&p->required, pid, 0, sets_get(&set, 0, i, j)))
 					/* contains already required package */
 					goto continue2;
+			for (j = 1; j < c; j++)
+				if (!sets_subsetcmp(&p->required, pid, j, &set, 0, i))
+					/* duplicate */
+					goto continue2;
 			for (j = 0; j < s; j++)
 				sets_add(&p->required, pid, c, sets_get(&set, 0, i, j));
 			c++;
