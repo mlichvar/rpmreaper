@@ -724,6 +724,8 @@ char *readline(const char *prompt) {
 					cur++;
 				break;
 			case KEY_BACKSPACE:
+			case 0x8:
+			case 0x7f:
 				if (!cur)
 					break;
 				cur--;
