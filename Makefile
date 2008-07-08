@@ -1,3 +1,4 @@
+NAME = rpmreaper
 VERSION = 0.1.4
 
 CFLAGS = -O -g -Wall
@@ -10,26 +11,26 @@ man1dir = $(mandir)/man1
 
 objs = $(patsubst %.c,%.o,$(wildcard *.c))
 
-all: rpmreaper
+all: $(NAME)
 
 clean:
-	-rm -rf rpmreaper *.o .deps
+	-rm -rf $(NAME) *.o .deps
 
-rpmreaper: $(objs)
+$(NAME): $(objs)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 rpm.o dep.o: CFLAGS += -Wno-return-type
 rpm.o dep.o: CPPFLAGS += -I/usr/include/rpm
 
-install: rpmreaper
+install: $(NAME)
 	mkdir -p $(bindir) $(man1dir)
-	install rpmreaper $(bindir)
-	install -p -m 644 rpmreaper.1 $(man1dir)
+	install $(NAME) $(bindir)
+	install -p -m 644 $(NAME).1 $(man1dir)
 
 archive:
-	@git archive -v --prefix=rpmreaper-$(VERSION)/ v$(VERSION) | \
-		tar --delete rpmreaper-$(VERSION)/.gitignore | \
-		gzip -9 > rpmreaper-$(VERSION).tar.gz
+	@git archive -v --prefix=$(NAME)-$(VERSION)/ v$(VERSION) | \
+		tar --delete $(NAME)-$(VERSION)/.gitignore | \
+		gzip -9 > $(NAME)-$(VERSION).tar.gz
 
 .deps:
 	@mkdir .deps
