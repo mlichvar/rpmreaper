@@ -3,40 +3,29 @@
 rpmreaper \- A tool for removing unnecessary packages from system
 
 .SH SYNOPSIS
-\fBrpmreaper\fR [\fB-alLvh\fR] | [\fIlimit\fR]
+\fBrpmreaper\fR [\fB-lvh\fR] [\fIlimit\fR]
 
 .SH DESCRIPTION
 rpmreaper is a simple ncurses application with a mutt-like interface that
 allows removing unnecessary packages and their dependencies from the system.
 
 .SH OPTIONS
-.RS 0
-.TP 8
-\fB-a\fR
-List installed packages. 
-.TP 8
-\fB-L\fR
-List leaf packages. 
 .TP 8
 \fB-l\fR
-List partial leaf packages. 
-.TP 8
-\fB-b\fR
-List broken packages. 
+List packages matching \fIlimit\fR, or all installed if not specified.
 .TP 8
 \fB-v\fR
 Verbose listing. 
 .TP 8
 \fB-h\fR
 Print help.
-.RE
 
+.PP
 The ncurses interface is used when started without any option. A \fIlimit\fR
 can be specified to limit the list of displayed packages. The syntax is
 described in the \fBSEARCH EXPRESSIONS\fR section.
 
 .SH KEYS
-.RS 0
 .TP 8
 \fBUP, DOWN, LEFT, PGUP, PGDOWN, HOME, END, TAB, BTAB, h, j, k\fR
 Move cursor.
@@ -101,10 +90,8 @@ Reload package list.
 .TP 8
 \fB^L\fR
 Redraw screen.
-.RE
 
 .SH PACKAGE FLAGS
-.RS 0
 .TP 8
 \fBL\fR
 Leaf, no package depends on the package.
@@ -121,7 +108,6 @@ Missing dependencies.
 .TP 8
 \fBb\fR
 Some packages required by the package are marked to be removed.
-.RE
 
 .SH SEARCH EXPRESSIONS
 

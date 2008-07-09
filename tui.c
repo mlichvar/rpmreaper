@@ -600,13 +600,17 @@ void print_pkg(const struct pkgs *p, uint pid) {
 	printf("%s", cname);
 }
 
-void print_pkgs(const struct pkgs *p, int flags, int verbose, int oneline) {
+void print_pkgs(const struct pkgs *p, const char *limit, int verbose, int oneline) {
 	const struct pkg *pkg;
+	struct searchexpr expr;
 	uint i;
+
+	if (limit != NULL && searchexpr_comp(&expr, limit))
+		return;
 
 	for (i = 0; i < pkgs_get_size(p); i++) {
 		pkg = pkgs_get(p, i);
-		if (!(pkg->status & flags))
+		if (limit != NULL && !searchexpr_match(p, i, &expr))
 			continue;
 		if (verbose)
 			printf("%d ", i);
@@ -625,6 +629,9 @@ void print_pkgs(const struct pkgs *p, int flags, int verbose, int oneline) {
 	}
 	if (oneline)
 		printf("\n");
+
+	if (limit != NULL)
+		searchexpr_clean(&expr);
 }
 
 void read_list(struct pkgs *p) {
@@ -991,7 +998,7 @@ void tui(const char *limit) {
 		int remove = ask_remove_pkgs(&p);
 		endwin();
 		if (!remove)
-			print_pkgs(&p, PKG_DELETE, 0, 1);
+			print_pkgs(&p, "~D", 0, 1);
 		else
 			rpmremove(&p, 0);
 	} else
@@ -1001,52 +1008,44 @@ void tui(const char *limit) {
 	free(searchre);
 }
 
-void list_pkgs(int flags, int verbose) {
+void list_pkgs(const char *limit, int verbose) {
 	struct pkgs p;
 
 	pkgs_init(&p);
 	rpmreaddb(&p);
 	pkgs_match_deps(&p);
-	print_pkgs(&p, flags, verbose, 0);
+	print_pkgs(&p, limit, verbose, 0);
 	pkgs_clean(&p);
 }
 
 int main(int argc, char **argv) {
-	int opt, list_flags = 0, verbose = 0;
+	int opt, list = 0, verbose = 0;
+	const char *limit = NULL;
 
-	while ((opt = getopt(argc, argv, "Llbavh")) != -1) {
+	while ((opt = getopt(argc, argv, "lvh")) != -1) {
 		switch (opt) {
-			case 'L':
-				list_flags |= PKG_LEAF;
-				break;
 			case 'l':
-				list_flags |= PKG_PARTLEAF;
-				break;
-			case 'b':
-				list_flags |= PKG_BROKEN;
-				break;
-			case 'a':
-				list_flags |= PKG_ALL;
+				list = 1;
 				break;
 			case 'v':
 				verbose = 1;
 				break;
 			case 'h':
 			default:
-				printf("usage: rpmreaper [options] | [limit]\n");
-				printf("  -a	list installed packages\n");
-				printf("  -L	list leaf packages\n");
-				printf("  -l	list partial leaf packages\n");
-				printf("  -b	list broken packages\n");
+				printf("usage: rpmreaper [options] [limit]\n");
+				printf("  -l	list packages\n");
 				printf("  -v	verbose listing\n");
 				printf("  -h	print usage\n");
 				return 0;
 		}
 	}
 
-	if (list_flags)
-		list_pkgs(list_flags, verbose);
+	if (optind < argc)
+		limit = argv[optind];
+
+	if (list)
+		list_pkgs(limit, verbose);
 	else
-		tui(optind < argc ? argv[optind] : NULL);
+		tui(limit);
 	return 0;
 }
