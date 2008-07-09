@@ -31,9 +31,9 @@ Verbose listing.
 Print help.
 .RE
 
-The ncurses interface is used when started without any option. A regular
-expression \fIlimit\fR can be specified to limit the list of displayed
-packages.
+The ncurses interface is used when started without any option. A \fIlimit\fR
+can be specified to limit the list of displayed packages. The syntax is
+described in the \fBSEARCH EXPRESSIONS\fR section.
 
 .SH KEYS
 .RS 0
@@ -67,10 +67,10 @@ Show/hide subtree of packages that require the highlighted package.
 Sort packages by name, flags or size.
 .TP 8
 \fBl\fR
-Limit the list of displayed packages.
+Limit the list of displayed packages. Uses the \fBSEARCH EXPRESSION\fR syntax.
 .TP 8
 \fB/, ?\fR
-Search in the package list.
+Search in the package list. Uses the \fBSEARCH EXPRESSION\fR syntax.
 .TP 8
 \fBn\fR
 Search for next package.
@@ -123,8 +123,33 @@ Missing dependencies.
 Some packages required by the package are marked to be removed.
 .RE
 
+.SH SEARCH EXPRESSIONS
+
+Search expression is a regular expression which can be optionally extended with
+roughly mutt-esque directives for matching package flags. Overall search
+expression syntax looks like this:
+
+{[!]~\fIflags\fR }[\fIregexp\fR]
+
+Recognized flags are described in the section \fBPACKAGE FLAGS\fR. Search
+expression matches a package, if the following three conditions hold: any of
+the flags specified in \fB~\fR directives is set; none of the flags specified
+in \fB!~\fR directives are set; and the specified regular expression matches
+the \fBn-v-r[.a]\fR string of the package.
+
+Examples:
+
+.TP 8
+\fB~Ll i386$\fR
+Match all leaf and partial leaf i386 packages.
+.TP 8
+\fB!~D perl\fR
+Match all perl packages except those marked for deletion.
+
 .SH SEE ALSO
 .BR rpm (8)
 
-.SH AUTHOR
+.SH AUTHORS
 Miroslav Lichvar <mlichvar@redhat.com>
+.br
+Petr Machata <pmachata@redhat.com>

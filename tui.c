@@ -423,29 +423,98 @@ void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, i
 	sortby = 0;
 }
 
+struct searchexpr {
+	char set;
+	char unset;
+	regex_t reg;
+};
+
+int searchexpr_comp(struct searchexpr *expr, const char *s) {
+	const char *rest = s;
+	char c = *rest;
+
+	if (rest == NULL)
+		return -1;
+
+	expr->set = 0;
+	expr->unset = 0;
+
+	if (c == '~' || c == '!') {
+		const char *it = rest;
+		int not = 0;
+		int flag = 0;
+		int letter = 0;
+
+		while ((c = *it++)) {
+			if (!not && !flag && c == '!')
+				not = 1;
+			else if (!flag && c == '~')
+				flag = 1;
+			else if (flag && (c == 'L' || c == 'l' || c == 'D' ||
+						c == 'B' || c == 'b')) {
+				char *field = not ? &expr->unset : &expr->set;
+
+				switch (c) {
+					case 'L': *field |= PKG_LEAF; break;
+					case 'l': *field |= PKG_PARTLEAF; break;
+					case 'D': *field |= PKG_DELETE; break;
+					case 'B': *field |= PKG_BROKEN; break;
+					case 'b': *field |= PKG_TOBEBROKEN; break;
+				}
+				letter = 1;
+				rest = it;
+			} else if (letter && c == ' ') {
+				not = 0;
+				flag = 0;
+				letter = 0;
+				rest = it;
+			} else
+				break;
+		}
+	}
+
+	if (regcomp(&expr->reg, rest, REG_EXTENDED | REG_NOSUB))
+		return -1;
+
+	return 0;
+}
+
+void searchexpr_clean(struct searchexpr *expr) {
+	regfree(&expr->reg);
+}
+
+int searchexpr_match(const struct pkgs *p, uint pid, const struct searchexpr *expr) {
+	char cname[RPMMAXCNAME];
+	const struct pkg *pkg = pkgs_get(p, pid);
+
+	if ((expr->set && (pkg->status & expr->set) == 0) ||
+			(pkg->status & expr->unset) != 0)
+		return 0;
+
+	rpmcname(cname, sizeof (cname), p, pid);
+	return !regexec(&expr->reg, cname, 0, NULL, 0);
+}
+
 void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
 	uint i, j;
-	regex_t reg;
+	struct searchexpr expr;
 
 	array_set_size(&l->rows, 0);
 	l->cursor = l->first = 0;
 
-	if (l->limit != NULL && regcomp(&reg, l->limit, REG_EXTENDED | REG_NOSUB))
+	if (l->limit != NULL && searchexpr_comp(&expr, l->limit))
 		return;
 
 	for (i = j = 0; i < pkgs_get_size(p); i++) {
-		if (l->limit != NULL) {
-			char cname[RPMMAXCNAME];
+		if (l->limit != NULL && !searchexpr_match(p, i, &expr))
+			continue;
 
-			rpmcname(cname, sizeof (cname), p, i);
-			if (regexec(&reg, cname, 0, NULL, 0))
-				continue;
-		}
 		get_wrow(l, j++)->pid = i;
 	}
 
 	if (l->limit != NULL)
-		regfree(&reg);
+		searchexpr_clean(&expr);
+
 	sort_rows(l, p, 0, get_used_pkgs(l), l->sortby);
 }
 
@@ -509,22 +578,19 @@ void limit_pkglist(struct pkglist *l, const struct pkgs *p, char *limit) {
 
 void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchre, int dir) {
 	uint c, used = get_used_pkgs(l);
-	regex_t reg;
+	struct searchexpr expr;
 
-	if (searchre == NULL || regcomp(&reg, searchre, REG_EXTENDED | REG_NOSUB))
+	if (searchre == NULL || searchexpr_comp(&expr, searchre))
 		return;
 
 	for (c = (l->cursor + dir + used) % used; c != l->cursor; c = (c + dir + used) % used) {
-		char cname[RPMMAXCNAME];
-
-		rpmcname(cname, sizeof (cname), p, get_row(l, c)->pid);
-		if (!regexec(&reg, cname, 0, NULL, 0)) {
+		if (searchexpr_match(p, get_row(l, c)->pid, &expr)) {
 			l->cursor = c;
 			break;
 		}
 	}
 
-	regfree(&reg);
+	searchexpr_clean(&expr);
 }
 
 void print_pkg(const struct pkgs *p, uint pid) {
