@@ -305,22 +305,19 @@ void scroll_pkglist(struct pkglist *l, int x) {
 int find_parent(const struct pkglist *l, int x) {
 	int level = get_row(l, x)->level;
 	int used = get_used_pkgs(l);
-	int i;
+	int i, dir, edges;
 
 	if (!level)
 		return x;
-	for (i = x; i >= 0; i--)
-		if (get_row(l, i)->level + 1 == level) {
-			if (get_row(l, i)->flags & FLAG_REQ)
-				return i;
-			break;
-		}
-	for (i = x; i < used; i++)
-		if (get_row(l, i)->level + 1 == level) {
-			if (get_row(l, i)->flags & FLAG_REQBY)
-				return i;
-			break;
-		}
+	for (dir = -1; dir <= 1; dir += 2)
+		for (i = x, edges = 0; i >= 0 && i < used; i += dir)
+			if (get_row(l, i)->level + 1 == level) {
+				if (get_row(l, i)->flags & (dir == 1 ? FLAG_REQBY : FLAG_REQ))
+					return i;
+				break;
+			} else if (get_row(l, i)->level == level && get_row(l, i)->flags & FLAG_EDGE)
+				if (edges++ == 1)
+					break;
 	return x;
 }
 
