@@ -22,13 +22,12 @@
 #include "dep.h"
 
 #define PKG_INSTALLED	(1<<0)
-#define PKG_DELETE	(1<<1)
+#define PKG_INLOOP	(1<<1)
 #define PKG_LEAF	(1<<2)
 #define PKG_PARTLEAF	(1<<3)
-#define PKG_BROKEN	(1<<4)
-#define PKG_TOBEBROKEN	(1<<5)
-#define PKG_INLOOP	(1<<6)
-#define PKG_ALL		0xff
+#define PKG_DELETE	(1<<4)
+#define PKG_BROKEN	(1<<5)
+#define PKG_TOBEBROKEN	(1<<6)
 
 struct pkg {
 	uint name;
