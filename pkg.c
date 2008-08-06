@@ -29,6 +29,7 @@ void pkgs_init(struct pkgs *p) {
 	sets_init(&p->provides);
 	sets_init(&p->required);
 	sets_init(&p->required_by);
+	sets_init(&p->sccs);
 }
 
 void pkgs_clean(struct pkgs *p) {
@@ -39,6 +40,7 @@ void pkgs_clean(struct pkgs *p) {
 	sets_clean(&p->provides);
 	sets_clean(&p->required);
 	sets_clean(&p->required_by);
+	sets_clean(&p->sccs);
 }
 
 void pkgs_set(struct pkgs *pkgs, uint pid, const char *name, int epoch,
@@ -232,10 +234,90 @@ static void fill_required_by(struct pkgs *p, uint pid) {
 			sets_add(&p->required_by, pid, 1, i);
 }
 
+/* Tarjan's SCC algorithm */
+
+struct tarjan {
+	struct pkgs *pkgs;
+	struct array index;
+	struct array lowlink;
+	struct array stack;
+	struct array onstack;
+	uint counter;
+};
+
+static void find_scc_rec(struct tarjan *t, uint pid) {
+	uint i, s, subset, subsets, r;
+
+	array_set(&t->index, pid, ++t->counter);
+	array_set(&t->lowlink, pid, t->counter);
+	array_set(&t->stack, array_get_size(&t->stack), pid);
+	array_set(&t->onstack, pid, 1);
+
+	subsets = sets_get_subsets(&t->pkgs->required_by, pid);
+	for (subset = 0; subset < subsets; subset++) {
+		s = sets_get_subset_size(&t->pkgs->required_by, pid, subset);
+		for (i = 0; i < s; i++) {
+			r = sets_get(&t->pkgs->required_by, pid, subset, i);
+
+			if (!array_get(&t->index, r)) {
+				find_scc_rec(t, r);
+				array_set(&t->lowlink, pid, MIN(array_get(&t->lowlink, pid), 
+							array_get(&t->lowlink, r)));
+			} else if (array_get(&t->onstack, r))
+				array_set(&t->lowlink, pid, MIN(array_get(&t->lowlink, pid),
+							array_get(&t->index, r)));
+		}
+	}
+
+	if (array_get(&t->lowlink, pid) == array_get(&t->index, pid)) {
+		uint j, scc;
+
+		s = j = array_get_size(&t->stack);
+		while (array_get(&t->stack, --j) != pid)
+			;
+
+		for (i = j, scc = sets_get_size(&t->pkgs->sccs); i < s; i++) {
+			r = array_get(&t->stack, i);
+			if (s - j > 1) {
+				pkgs_getw(t->pkgs, r)->status |= PKG_INLOOP;
+				sets_add(&t->pkgs->sccs, scc, 0, r);
+			}
+			array_set(&t->onstack, r, 0);
+		}
+		array_set_size(&t->stack, j);
+	}
+}
+
+static void find_sccs(struct pkgs *p) {
+	uint i, n;
+	struct tarjan t;
+
+	n = pkgs_get_size(p);
+
+	t.pkgs = p;
+	array_init(&t.index, 0);
+	array_set_size(&t.index, n);
+	array_init(&t.lowlink, 0);
+	array_set_size(&t.lowlink, n);
+	array_init(&t.stack, 0);
+	array_init(&t.onstack, 0);
+	array_set_size(&t.onstack, n);
+	t.counter = 0;
+
+	for (i = 0; i < n; i++)
+		if (!array_get(&t.index, i))
+			find_scc_rec(&t, i);
+
+	array_clean(&t.onstack);
+	array_clean(&t.stack);
+	array_clean(&t.lowlink);
+	array_clean(&t.index);
+}
+
 void pkgs_match_deps(struct pkgs *p) {
 	uint i, n;
 
-	n = array_get_size(&p->pkgs);
+	n = pkgs_get_size(p);
 
 	sets_set_size(&p->requires, n);
 	sets_set_size(&p->provides, n);
@@ -259,6 +341,8 @@ void pkgs_match_deps(struct pkgs *p) {
 
 	for (i = 0; i < n; i++)
 		pkgs_getw(p, i)->status |= leaf_pkg(p, i);
+
+	find_sccs(p);
 }
 
 static void verify_partleaves(struct pkgs *p, uint pid, uint what, int removed) {

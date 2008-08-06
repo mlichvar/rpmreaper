@@ -27,6 +27,7 @@
 #define PKG_PARTLEAF	(1<<3)
 #define PKG_BROKEN	(1<<4)
 #define PKG_TOBEBROKEN	(1<<5)
+#define PKG_INLOOP	(1<<6)
 #define PKG_ALL		0xff
 
 struct pkg {
@@ -48,6 +49,7 @@ struct pkgs {
 	//struct sets conflicts;
 	struct sets required;
 	struct sets required_by;
+	struct sets sccs;
 
 	int delete_pkgs;
 	int pkgs_kbytes;

@@ -80,6 +80,7 @@ void select_color_by_status(const struct pkg *pkg) {
 void display_pkg_status(const struct pkg *pkg) {
 	addch(pkg->status & PKG_DELETE ? 'D' : ' ');
 	addch(pkg->status & PKG_LEAF ? 'L' : pkg->status & PKG_PARTLEAF ? 'l' : ' ');
+	addch(pkg->status & PKG_INLOOP ? 'o' : ' ');
 	addch(pkg->status & PKG_BROKEN ? 'B' : pkg->status & PKG_TOBEBROKEN ? 'b' : ' ');
 }
 
@@ -451,7 +452,7 @@ int searchexpr_comp(struct searchexpr *expr, const char *s) {
 			else if (!flag && c == '~')
 				flag = 1;
 			else if (flag && (c == 'L' || c == 'l' || c == 'D' ||
-						c == 'B' || c == 'b')) {
+						c == 'B' || c == 'b' || c == 'o')) {
 				char *field = not ? &expr->unset : &expr->set;
 
 				switch (c) {
@@ -460,6 +461,7 @@ int searchexpr_comp(struct searchexpr *expr, const char *s) {
 					case 'D': *field |= PKG_DELETE; break;
 					case 'B': *field |= PKG_BROKEN; break;
 					case 'b': *field |= PKG_TOBEBROKEN; break;
+					case 'o': *field |= PKG_INLOOP; break;
 				}
 				letter = 1;
 				rest = it;
@@ -625,6 +627,8 @@ void print_pkgs(const struct pkgs *p, const char *limit, int verbose, int onelin
 			printf(" PARTLEAF");
 		if (pkg->status & PKG_BROKEN)
 			printf(" BROKEN");
+		if (pkg->status & PKG_INLOOP)
+			printf(" INLOOP");
 		printf("\n");
 	}
 	if (oneline)
