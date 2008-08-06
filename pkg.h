@@ -35,7 +35,7 @@ struct pkg {
 	uint rel;
 	uint arch;
 	uint size;
-	char status;
+	uint status;
 };
 
 struct pkgs {

@@ -422,8 +422,8 @@ void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, i
 }
 
 struct searchexpr {
-	char set;
-	char unset;
+	uint set;
+	uint unset;
 	regex_t reg;
 };
 
@@ -450,7 +450,7 @@ int searchexpr_comp(struct searchexpr *expr, const char *s) {
 				flag = 1;
 			else if (flag && (c == 'L' || c == 'l' || c == 'D' ||
 						c == 'B' || c == 'b' || c == 'o')) {
-				char *field = not ? &expr->unset : &expr->set;
+				uint *field = not ? &expr->unset : &expr->set;
 
 				switch (c) {
 					case 'L': *field |= PKG_LEAF; break;
