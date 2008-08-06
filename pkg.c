@@ -312,6 +312,8 @@ static void find_sccs(struct pkgs *p) {
 	array_clean(&t.stack);
 	array_clean(&t.lowlink);
 	array_clean(&t.index);
+
+	sets_hash(&p->sccs);
 }
 
 void pkgs_match_deps(struct pkgs *p) {

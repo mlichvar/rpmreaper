@@ -29,6 +29,7 @@
 #define FLAG_REQOR	(1<<1)
 #define FLAG_REQBY	(1<<2)
 #define FLAG_EDGE	(1<<3)
+#define FLAG_PLOOP	(1<<4)
 
 #define SORT_BY_NAME	0
 #define SORT_BY_FLAGS	1
@@ -190,7 +191,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 
 		for (; i < used && ((dir > 0 && i > first) || (dir < 0 && i - first < lines));
 				i -= dir) {
-			int edge, j, level1, level2, reqor = 0, oldreqor = 0;
+			int edge, ploop = 0, j, level1, level2, reqor = 0, oldreqor = 0;
 
 			if (!(get_row(l, i)->flags & (dir > 0 ? FLAG_REQBY : FLAG_REQ)))
 				continue;
@@ -203,6 +204,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 				level2 = get_row(l, j)->level;
 				if (level2 == level1 + 1) {
 					edge = get_row(l, j)->flags & FLAG_EDGE;
+					ploop = get_row(l, j)->flags & FLAG_PLOOP;
 					oldreqor = reqor;
 					reqor = !!(get_row(l, j)->flags & FLAG_REQOR);
 				}
@@ -237,6 +239,8 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 						}
 						addch('>');
 					}
+					if (ploop)
+						addch('+');
 				} else {
 					addch(ACS_VLINE);
 					if (reqor && dir < 0)
@@ -351,7 +355,7 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
 		l->cursor = edge;
 		get_wrow(l, l->cursor)->flags &= ~FLAG_REQBY;
 	} else {
-		uint i, j, d, dep, deps, pid;
+		uint i, j, d, dep, deps, pid, pid2, scc;
 		const struct sets *r;
 		struct row *row = NULL;
 
@@ -367,17 +371,22 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
 		} else
 			move_rows(l, l->cursor + 1, l->cursor + deps + 1);
 
+		i = 0;
+		scc = pkgs_get(p, pid)->status & PKG_INLOOP ? sets_find(&p->sccs, pid, &i) : -1;
+
 		for (i = 0, dep = 1; i < sets_get_subsets(r, pid); i++) {
 			d = sets_get_subset_size(r, pid, i);
 			if (!d)
 				continue;
 			for (j = 0; j < d; j++, dep++) {
 				row = get_wrow(l, l->cursor + (reqby ? -dep : dep));
-				row->pid = sets_get(r, pid, i, j);
+				row->pid = pid2 = sets_get(r, pid, i, j);
 				row->level = get_row(l, l->cursor)->level + 1;
 				row->flags = 0;
 				if (i) 
 					row->flags |= FLAG_REQOR;
+				if (scc != -1 && sets_has(&p->sccs, scc, pid2))
+					row->flags |= FLAG_PLOOP;
 			}
 			sort_rows(l, p, l->cursor + (reqby ? -dep + 1 : dep - d), d, SORT_BY_NAME);
 			if (i && !reqby)
