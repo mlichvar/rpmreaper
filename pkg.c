@@ -475,3 +475,21 @@ int pkgs_undelete(struct pkgs *p, uint pid, int force) {
 
 	return 1;
 }
+
+void pkgs_get_trans_reqs(const struct pkgs *p, uint pid, int reqby, struct sets *set) {
+	uint i, j, req, s;
+	const struct sets *r;
+
+	r = reqby ? &p->required_by : &p->required;
+
+	for (i = 0; i < sets_get_subsets(r, pid); i++) {
+		s = sets_get_subset_size(r, pid, i);
+		for (j = 0; j < s; j++) {
+			req = sets_get(r, pid, i, j);
+			if (sets_has(set, 0, req))
+				continue;
+			sets_add(set, 0, 0, req);
+			pkgs_get_trans_reqs(p, req, reqby, set);
+		}
+	}
+}

@@ -78,4 +78,5 @@ void pkgs_match_deps(struct pkgs *p);
 int pkgs_delete(struct pkgs *p, uint pid, int force);
 int pkgs_undelete(struct pkgs *p, uint pid, int force);
 
+void pkgs_get_trans_reqs(const struct pkgs *p, uint pid, int reqby, struct sets *set);
 #endif

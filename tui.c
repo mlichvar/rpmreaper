@@ -30,6 +30,7 @@
 #define FLAG_REQBY	(1<<2)
 #define FLAG_EDGE	(1<<3)
 #define FLAG_PLOOP	(1<<4)
+#define FLAG_TRANS	(1<<5)
 
 #define SORT_BY_NAME	0
 #define SORT_BY_FLAGS	1
@@ -102,7 +103,7 @@ void display_help() {
 	attron(COLOR_PAIR(1));
 	move(0, 0);
 	hline(' ', COLS);
-	addnstr("q:Quit  d,D:Del  u,U:Undel  r:Req  b:ReqBy  o:Sort  i:Info  c,C:Commit  l:Limit", COLS);
+	addnstr("q:Quit  d,D:Del  u,U:Undel  r,R:Req  b,B:ReqBy  i:Info  c,C:Commit  F1:Help", COLS);
 }
 
 void display_status(const struct pkgs *p) {
@@ -191,7 +192,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 
 		for (; i < used && ((dir > 0 && i > first) || (dir < 0 && i - first < lines));
 				i -= dir) {
-			int edge, ploop = 0, j, level1, level2, reqor = 0, oldreqor = 0;
+			int edge, ploop = 0, trans = 0, j, level1, level2, reqor = 0, oldreqor = 0;
 
 			if (!(get_row(l, i)->flags & (dir > 0 ? FLAG_REQBY : FLAG_REQ)))
 				continue;
@@ -205,6 +206,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 				if (level2 == level1 + 1) {
 					edge = get_row(l, j)->flags & FLAG_EDGE;
 					ploop = get_row(l, j)->flags & FLAG_PLOOP;
+					trans = get_row(l, j)->flags & FLAG_TRANS;
 					oldreqor = reqor;
 					reqor = !!(get_row(l, j)->flags & FLAG_REQOR);
 				}
@@ -223,22 +225,15 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 				}
 
 				if (level2 == level1 + 1) {
-					const chtype ch1[2][2] = {{ACS_LTEE, ACS_VLINE}, {ACS_LTEE, ACS_VLINE}};
-					const chtype ch2[2][2] = {{ACS_HLINE, ACS_ULCORNER}, {ACS_BTEE, ACS_LTEE}};
-					if (dir > 0) {
-						addch(edge ? ACS_ULCORNER : ACS_LTEE);
-						addch(reqor ? ' ' : ACS_HLINE);
-						addch('<');
-					} else {
-						if (edge) {
-							addch(ACS_LLCORNER);
-							addch(oldreqor ? ACS_BTEE : ACS_HLINE);
-						} else {
-							addch(ch1[oldreqor][reqor]);
-							addch(ch2[oldreqor][reqor]);
-						}
-						addch('>');
-					}
+					if (edge)
+						addch(dir > 0 ? ACS_ULCORNER : ACS_LLCORNER);
+					else 
+						addch(reqor && dir < 0 ? ACS_VLINE : ACS_LTEE);
+					if (reqor)
+						addch(dir > 0 ? ' ' : oldreqor ? ACS_LTEE : ACS_ULCORNER);
+					else
+						addch(trans ? '*' : oldreqor ? ACS_BTEE : ACS_HLINE);
+					addch(dir > 0 ? '<' : '>');
 					if (ploop)
 						addch('+');
 				} else {
@@ -344,7 +339,7 @@ void move_rows(struct pkglist *l, int from, int where) {
 		array_set_size(&l->rows, get_used_pkgs(l) - (from - where));
 }
 
-void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
+void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int trans) {
 	if (!reqby && get_row(l, l->cursor)->flags & FLAG_REQ) {
 		move_rows(l, find_outer_edge(l, l->cursor, FLAG_REQ) + 1, l->cursor + 1);
 		get_wrow(l, l->cursor)->flags &= ~FLAG_REQ;
@@ -355,15 +350,30 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
 		l->cursor = edge;
 		get_wrow(l, l->cursor)->flags &= ~FLAG_REQBY;
 	} else {
-		uint i, j, d, dep, deps, pid, pid2, scc;
+		uint i, j, d, dep, deps, pid, pid2, s, scc;
 		const struct sets *r;
 		struct row *row = NULL;
+		struct sets transreqs;
 
-		r = reqby ? &p->required_by : &p->required;
 		pid = get_row(l, l->cursor)->pid;
-		deps = sets_get_set_size(r, pid);
-		if (!deps)
+
+		if (trans) {
+			sets_init(&transreqs);
+			sets_set_size(&transreqs, 1);
+			pkgs_get_trans_reqs(p, pid, reqby, &transreqs);
+			r = &transreqs;
+			s = 0;
+		} else {
+			r = reqby ? &p->required_by : &p->required;
+			s = pid;
+		}
+
+		deps = sets_get_set_size(r, s);
+		if (!deps) {
+			if (trans)
+				sets_clean(&transreqs);
 			return;
+		}
 
 		if (reqby) {
 			move_rows(l, l->cursor, l->cursor + deps);
@@ -374,19 +384,21 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
 		i = 0;
 		scc = pkgs_get(p, pid)->status & PKG_INLOOP ? sets_find(&p->sccs, pid, &i) : -1;
 
-		for (i = 0, dep = 1; i < sets_get_subsets(r, pid); i++) {
-			d = sets_get_subset_size(r, pid, i);
+		for (i = 0, dep = 1; i < sets_get_subsets(r, s); i++) {
+			d = sets_get_subset_size(r, s, i);
 			if (!d)
 				continue;
 			for (j = 0; j < d; j++, dep++) {
 				row = get_wrow(l, l->cursor + (reqby ? -dep : dep));
-				row->pid = pid2 = sets_get(r, pid, i, j);
+				row->pid = pid2 = sets_get(r, s, i, j);
 				row->level = get_row(l, l->cursor)->level + 1;
 				row->flags = 0;
 				if (i) 
 					row->flags |= FLAG_REQOR;
 				if (scc != -1 && sets_has(&p->sccs, scc, pid2))
 					row->flags |= FLAG_PLOOP;
+				if (trans)
+					row->flags |= FLAG_TRANS;
 			}
 			sort_rows(l, p, l->cursor + (reqby ? -dep + 1 : dep - d), d, SORT_BY_NAME);
 			if (i && !reqby)
@@ -394,6 +406,9 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby) {
 		}
 		row->flags |= FLAG_EDGE;
 		get_wrow(l, l->cursor)->flags |= reqby ? FLAG_REQBY : FLAG_REQ;
+
+		if (trans)
+			sets_clean(&transreqs);
 	}
 }
 
@@ -969,10 +984,12 @@ void tui(const char *limit) {
 				move_to_next_leaf(&l, &p, 1);
 				break;
 			case 'r':
-				toggle_req(&l, &p, 0);
+			case 'R':
+				toggle_req(&l, &p, 0, c == 'r' ? 0 : 1);
 				break;
 			case 'b':
-				toggle_req(&l, &p, 1);
+			case 'B':
+				toggle_req(&l, &p, 1, c == 'b' ? 0 : 1);
 				break;
 			case 'd':
 				pkgs_delete(&p, get_row(&l, l.cursor)->pid, 0);
