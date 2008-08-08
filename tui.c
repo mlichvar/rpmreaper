@@ -992,16 +992,15 @@ void tui(const char *limit) {
 				toggle_req(&l, &p, 1, c == 'b' ? 0 : 1);
 				break;
 			case 'd':
-				pkgs_delete(&p, get_row(&l, l.cursor)->pid, 0);
-				break;
 			case 'D':
-				pkgs_delete(&p, get_row(&l, l.cursor)->pid, 1);
+				pkgs_delete(&p, get_row(&l, l.cursor)->pid, c == 'd' ? 0 : 1);
 				break;
 			case 'u':
-				pkgs_undelete(&p, get_row(&l, l.cursor)->pid, 0);
-				break;
 			case 'U':
-				pkgs_undelete(&p, get_row(&l, l.cursor)->pid, 1);
+				pkgs_undelete(&p, get_row(&l, l.cursor)->pid, c == 'u' ? 0 : 1);
+				break;
+			case 'E':
+				pkgs_delete_rec(&p, get_row(&l, l.cursor)->pid);
 				break;
 			case 'i':
 				display_pkg_info(&p, get_row(&l, l.cursor)->pid);

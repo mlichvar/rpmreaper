@@ -95,7 +95,7 @@ uint pkgs_get_prov(const struct pkgs *p, uint pid, uint prov) {
 	return sets_get(&p->provides, pid, 0, prov);
 }
 
-static int pkg_req_pkg(struct pkgs *p, uint pid, uint what) {
+static int pkg_req_pkg(const struct pkgs *p, uint pid, uint what) {
 	uint i, j, n, subs;
 
 	subs = sets_get_subsets(&p->required, pid);
@@ -472,6 +472,39 @@ int pkgs_undelete(struct pkgs *p, uint pid, int force) {
 				verify_partleaves(p, r, pid, 0);
 		}
 	}
+
+	return 1;
+}
+
+int pkgs_delete_rec(struct pkgs *p, uint pid) {
+	uint i = 0, j, req, s;
+	const struct sets *r;
+	const struct pkg *pkg;
+
+	r = &p->required_by;
+	pkg = pkgs_get(p, pid);
+
+	if (pkg->status & PKG_DELETE)
+		return 0;
+
+	if (pkg->status & PKG_INLOOP &&	!pkgs_delete(p, pid, 1))
+		return 0;
+
+	for (i = 0; i < sets_get_subsets(r, pid); i++) {
+		s = sets_get_subset_size(r, pid, i);
+		for (j = 0; j < s; j++) {
+			req = sets_get(r, pid, i, j);
+			if (pkgs_get(p, req)->status & PKG_DELETE)
+				continue;
+			if (i && !pkg_req_pkg(p, req, pid))
+				continue;
+			if (!pkgs_delete_rec(p, req))
+				return 0;
+		}
+	}
+
+	if (!(pkg->status & PKG_DELETE) && !pkgs_delete(p, pid, 0))
+		return 0;
 
 	return 1;
 }
