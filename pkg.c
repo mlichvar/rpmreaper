@@ -27,6 +27,7 @@ void pkgs_init(struct pkgs *p) {
 	deps_init(&p->deps, &p->strings);
 	sets_init(&p->requires);
 	sets_init(&p->provides);
+	sets_init(&p->fileprovides);
 	sets_init(&p->required);
 	sets_init(&p->required_by);
 	sets_init(&p->sccs);
@@ -38,24 +39,26 @@ void pkgs_clean(struct pkgs *p) {
 	deps_clean(&p->deps);
 	sets_clean(&p->requires);
 	sets_clean(&p->provides);
+	sets_clean(&p->fileprovides);
 	sets_clean(&p->required);
 	sets_clean(&p->required_by);
 	sets_clean(&p->sccs);
 }
 
-void pkgs_set(struct pkgs *pkgs, uint pid, const char *name, int epoch,
-		const char *version, const char *release, const char *arch, uint kbytes) {
+void pkgs_set(struct pkgs *pkgs, uint pid, uint repo, const char *name, int epoch,
+		const char *version, const char *release, const char *arch, uint status, uint kbytes) {
 	struct pkg *p;
 
 	p = pkgs_getw(pkgs, pid);
 
 	/* p->epoch = epoch */
+	p->repo = repo;
 	p->name = strings_add(&pkgs->strings, name);
 	p->ver = strings_add(&pkgs->strings, version);
 	p->rel = strings_add(&pkgs->strings, release);
 	p->arch = strings_add(&pkgs->strings, arch == NULL ? "" : arch);
 	p->size = kbytes;
-	p->status = PKG_INSTALLED;
+	p->status = status;
 	pkgs->pkgs_kbytes += kbytes;
 }
 
@@ -77,6 +80,10 @@ void pkgs_add_req(struct pkgs *p, uint pid, const char *req, int flags, const ch
 
 void pkgs_add_prov(struct pkgs *p, uint pid, const char *prov, int flags, const char *ver) {
 	sets_add(&p->provides, pid, 0, deps_add(&p->deps, prov, flags, ver));
+}
+
+void pkgs_add_fileprov(struct pkgs *p, uint pid, const char *file) {
+	sets_add(&p->fileprovides, pid, 0, deps_add(&p->deps, file, 0, 0));
 }
 
 uint pkgs_get_req_size(const struct pkgs *p, uint pid) {
@@ -320,6 +327,9 @@ void pkgs_match_deps(struct pkgs *p) {
 	uint i, n;
 
 	n = pkgs_get_size(p);
+
+	sets_merge(&p->provides, &p->fileprovides);
+	sets_clean(&p->fileprovides);
 
 	sets_set_size(&p->requires, n);
 	sets_set_size(&p->provides, n);

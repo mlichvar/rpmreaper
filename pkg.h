@@ -36,6 +36,7 @@ struct pkg {
 	uint arch;
 	uint size;
 	uint status;
+	uint repo;
 };
 
 struct pkgs {
@@ -45,6 +46,7 @@ struct pkgs {
 
 	struct sets requires;
 	struct sets provides;
+	struct sets fileprovides;
 	//struct sets conflicts;
 	struct sets required;
 	struct sets required_by;
@@ -57,9 +59,9 @@ struct pkgs {
 
 void pkgs_init(struct pkgs *p);
 void pkgs_clean(struct pkgs *p);
-void pkgs_set(struct pkgs *pkgs, uint pid, const char *name, int epoch,
+void pkgs_set(struct pkgs *pkgs, uint pid, uint repo, const char *name, int epoch,
 		const char *version, const char *release, const char *arch,
-		uint kbytes);
+		uint status, uint kbytes);
 uint pkgs_get_size(const struct pkgs *pkgs);
 const struct pkg *pkgs_get(const struct pkgs *p, uint i);
 struct pkg *pkgs_getw(struct pkgs *pkgs, uint pid);
@@ -68,6 +70,7 @@ void pkgs_add_req(struct pkgs *p, uint pid, const char *req, int flags,
 		const char *ver);
 void pkgs_add_prov(struct pkgs *p, uint pid, const char *prov, int flags,
 		const char *ver);
+void pkgs_add_fileprov(struct pkgs *p, uint pid, const char *file);
 uint pkgs_get_req_size(const struct pkgs *p, uint pid);
 uint pkgs_get_prov_size(const struct pkgs *p, uint pid);
 uint pkgs_get_req(const struct pkgs *p, uint pid, uint req);

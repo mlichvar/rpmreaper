@@ -23,6 +23,7 @@
 #include <regex.h>
 #include <ncurses.h>
 
+#include "repo.h"
 #include "rpm.h"
 
 #define FLAG_REQ	(1<<0)
@@ -149,9 +150,9 @@ void display_question(const char *m) {
 	display_message(m, COLOR_PAIR(2));
 }
 
-void display_pkg_info(const struct pkgs *p, uint pid) {
+void display_pkg_info(const struct repos *r, uint pid) {
 	endwin();
-	rpminfo(p, pid);
+	repos_pkg_info(r, pid);
 }
 
 void display_pkgs(const struct pkglist *l, const struct pkgs *p) {
@@ -659,11 +660,9 @@ void print_pkgs(const struct pkgs *p, const char *limit, int verbose, int onelin
 		searchexpr_clean(&expr);
 }
 
-void read_list(struct pkgs *p) {
-	display_info_message("Reading rpmdb...");
-	rpmreaddb(p);
-	display_info_message("Matching deps...");
-	pkgs_match_deps(p);
+void read_list(struct repos *r) {
+	display_info_message("Reading packages...");
+	repos_read(r);
 	display_info_message(NULL);
 }
 
@@ -735,16 +734,15 @@ void load_cursor(const char *c, struct pkglist *l, const struct pkgs *p) {
 	}
 }
 
-void reread_list(struct pkgs *p, struct pkglist *l) {
+void reread_list(struct repos *r, struct pkglist *l) {
+	struct pkgs *p = &r->pkgs;
 	struct selection s;
 	char cursor[RPMMAXCNAME];
 
 	save_selection(&s, p);
 	save_cursor(cursor, sizeof (cursor), l, p);
 
-	pkgs_clean(p);
-	pkgs_init(p);
-	read_list(p);
+	read_list(r);
 
 	load_selection(&s, p);
 	clean_selection(&s);
@@ -754,17 +752,19 @@ void reread_list(struct pkgs *p, struct pkglist *l) {
 	load_cursor(cursor, l, p);
 }
 
-void commit(struct pkgs *p, struct pkglist *l, int force) {
+void commit(struct repos *r, struct pkglist *l, int force) {
+	struct pkgs *p = &r->pkgs;
+
 	if (ask_remove_pkgs(p)) {
 		endwin();
-		if (rpmremove(p, force)) {
+		if (repos_remove_pkgs(r, force)) {
 			char buf[100], *d;
 
 			printf("\nPress Enter to continue.");
 			fflush(stdout);
 			d = fgets(buf, sizeof (buf), stdin);
 		}
-		reread_list(p, l);
+		reread_list(r, l);
 	}
 }
 
@@ -853,9 +853,9 @@ char *readline(const char *prompt) {
 	return buf;
 }
 
-void tui(const char *limit) {
+void tui(struct repos *r, const char *limit) {
 	struct pkglist l;
-	struct pkgs p;
+	struct pkgs *p = &r->pkgs;
 	int c, quit, searchdir = 0;
 	char *s, *searchre = NULL;
 
@@ -877,21 +877,20 @@ void tui(const char *limit) {
 	curs_set(0);
 	erase();
 
-	pkgs_init(&p);
 	display_help();
-	display_status(&p);
-	read_list(&p);
+	display_status(p);
+	read_list(r);
 
-	init_pkglist(&l, &p, SORT_BY_FLAGS, limit != NULL ? strdup(limit) : NULL);
+	init_pkglist(&l, p, SORT_BY_FLAGS, limit != NULL ? strdup(limit) : NULL);
 
 	for (quit = 0; !quit; ) {
 		move_cursor(&l, 0);
 
 		erase();
-		display_pkgs(&l, &p);
-		draw_deplines(&l, &p);
+		display_pkgs(&l, p);
+		draw_deplines(&l, p);
 		display_help();
-		display_status(&p);
+		display_status(p);
 		display_liststatus(&l);
 
 		if (!get_used_pkgs(&l))
@@ -904,14 +903,14 @@ void tui(const char *limit) {
 		switch (c) {
 			case 'c':
 			case 'C':
-				commit(&p, &l, c == 'c' ? 0 : 1);
+				commit(r, &l, c == 'c' ? 0 : 1);
 				break;
 			case 'l':
 				if ((s = readline("Limit: ")) != NULL)
-					limit_pkglist(&l, &p, s);
+					limit_pkglist(&l, p, s);
 				break;
 			case 'o':
-				sort_pkglist(&l, &p);
+				sort_pkglist(&l, p);
 				break;
 			case 'q':
 				quit = 1;
@@ -921,7 +920,7 @@ void tui(const char *limit) {
 				break;
 			/* ^R */
 			case 'R' - 0x40:
-				reread_list(&p, &l);
+				reread_list(r, &l);
 				break;
 			/* ^L */
 			case 'L' - 0x40:
@@ -978,32 +977,32 @@ void tui(const char *limit) {
 				l.cursor = get_used_pkgs(&l) - 1;
 				break;
 			case KEY_BTAB:
-				move_to_next_leaf(&l, &p, -1);
+				move_to_next_leaf(&l, p, -1);
 				break;
 			case '\t':
-				move_to_next_leaf(&l, &p, 1);
+				move_to_next_leaf(&l, p, 1);
 				break;
 			case 'r':
 			case 'R':
-				toggle_req(&l, &p, 0, c == 'r' ? 0 : 1);
+				toggle_req(&l, p, 0, c == 'r' ? 0 : 1);
 				break;
 			case 'b':
 			case 'B':
-				toggle_req(&l, &p, 1, c == 'b' ? 0 : 1);
+				toggle_req(&l, p, 1, c == 'b' ? 0 : 1);
 				break;
 			case 'd':
 			case 'D':
-				pkgs_delete(&p, get_row(&l, l.cursor)->pid, c == 'd' ? 0 : 1);
+				pkgs_delete(p, get_row(&l, l.cursor)->pid, c == 'd' ? 0 : 1);
 				break;
 			case 'u':
 			case 'U':
-				pkgs_undelete(&p, get_row(&l, l.cursor)->pid, c == 'u' ? 0 : 1);
+				pkgs_undelete(p, get_row(&l, l.cursor)->pid, c == 'u' ? 0 : 1);
 				break;
 			case 'E':
-				pkgs_delete_rec(&p, get_row(&l, l.cursor)->pid);
+				pkgs_delete_rec(p, get_row(&l, l.cursor)->pid);
 				break;
 			case 'i':
-				display_pkg_info(&p, get_row(&l, l.cursor)->pid);
+				display_pkg_info(r, get_row(&l, l.cursor)->pid);
 				break;
 			case '/':
 			case '?':
@@ -1013,38 +1012,33 @@ void tui(const char *limit) {
 				searchre = s;
 				searchdir = (c == '/') ? 1 : -1;
 			case 'n':
-				search_pkglist(&l, &p, searchre, searchdir);
+				search_pkglist(&l, p, searchre, searchdir);
 				break;
 			case 'N':
-				search_pkglist(&l, &p, searchre, -searchdir);
+				search_pkglist(&l, p, searchre, -searchdir);
 				break;
 		}
 	}	
 	if (quit < 2) {
-		int remove = ask_remove_pkgs(&p);
+		int remove = ask_remove_pkgs(p);
 		endwin();
 		if (!remove)
-			print_pkgs(&p, "~D", 0, 1);
+			print_pkgs(p, "~D", 0, 1);
 		else
-			rpmremove(&p, 0);
+			repos_remove_pkgs(r, 0);
 	} else
 		endwin();
 	clean_pkglist(&l);
-	pkgs_clean(&p);
 	free(searchre);
 }
 
-void list_pkgs(const char *limit, int verbose) {
-	struct pkgs p;
-
-	pkgs_init(&p);
-	rpmreaddb(&p);
-	pkgs_match_deps(&p);
-	print_pkgs(&p, limit, verbose, 0);
-	pkgs_clean(&p);
+void list_pkgs(struct repos *r, const char *limit, int verbose) {
+	repos_read(r);
+	print_pkgs(&r->pkgs, limit, verbose, 0);
 }
 
 int main(int argc, char **argv) {
+	struct repos r;
 	int opt, list = 0, verbose = 0;
 	const char *limit = NULL;
 
@@ -1066,12 +1060,17 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	repos_init(&r);
+	rpm_fillrepo(repos_new(&r));
+
 	if (optind < argc)
 		limit = argv[optind];
 
 	if (list)
-		list_pkgs(limit, verbose);
+		list_pkgs(&r, limit, verbose);
 	else
-		tui(limit);
+		tui(&r, limit);
+
+	repos_clean(&r);
 	return 0;
 }

@@ -18,13 +18,11 @@
 #ifndef _RPM_H_
 #define _RPM_H_
 
-#include "pkg.h"
+#include "repo.h"
 
 #define RPMMAXCNAME 1000
 
-int rpmreaddb(struct pkgs *p);
 int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid);
-int rpminfo(const struct pkgs *p, uint pid);
-int rpmremove(const struct pkgs *p, int force);
+void rpm_fillrepo(struct repo *r);
 
 #endif

@@ -16,8 +16,6 @@
  */
 
 #include <stdlib.h>
-#include <string.h>
-#include <libgen.h>
 #include <rpmcli.h>
 #include <rpmdb.h>
 #include <rpmds.h>
@@ -73,13 +71,24 @@ static void free_int(Header h, int_32 **i) {
 	*i = NULL;
 }
 
-static void pass1(struct pkgs *p, rpmts ts) {
+struct rpmrepodata {
+	poptContext context;
+	rpmts ts;
+};
+
+static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
+	struct rpmrepodata *rd = repo->data;
 	rpmdbMatchIterator iter;
 	Header header;
 	uint pid;
+	char *argv[] = {""};
 
-	iter = rpmtsInitIterator(ts, RPMTAG_NAME, NULL, 0);
-	for (pid = 0; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
+	rd->context = rpmcliInit(1, argv, NULL);
+	rd->ts = rpmtsCreate();
+	rpmtsSetVSFlags(rd->ts, _RPMVSF_NOSIGNATURES | _RPMVSF_NODIGESTS);
+
+	iter = rpmtsInitIterator(rd->ts, RPMTAG_NAME, NULL, 0);
+	for (pid = firstpid; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
 		int i, ds1, ds2, ds3;
 		int_32 *epoch, *size, *requireflags, zero = 0;
 		char *release, *name, *version, *arch;
@@ -93,7 +102,8 @@ static void pass1(struct pkgs *p, rpmts ts) {
 			size = &zero;
 		if (!get_int(header, RPMTAG_EPOCH, &epoch))
 			epoch = &zero;
-		pkgs_set(p, pid, name, *epoch, version, release, arch, (*size + 1023) / 1024);
+		pkgs_set(p, pid, repo->repo, name, *epoch, version, release, arch,
+				PKG_INSTALLED, (*size + 1023) / 1024);
 		free_string(header, &name);
 		free_string(header, &version);
 		free_string(header, &release);
@@ -114,50 +124,11 @@ static void pass1(struct pkgs *p, rpmts ts) {
 		free_strings(header, &requires);
 		free_int(header, &requireflags);
 		free_strings(header, &requireversions);
-	}
-	iter = rpmdbFreeIterator(iter);
-}
-
-static void pass2(struct pkgs *p, rpmts ts) {
-	rpmdbMatchIterator iter;
-	Header header;
-	struct strings basenames;
-	uint s;
-	char buf[1000];
-	uint pid;
-
-	buf[sizeof (buf) - 1] = '\0';
-
-	strings_init(&basenames);
-
-	/* find file requires */
-	for (s = strings_get_first(&p->strings); s != -1; s = strings_get_next(&p->strings, s)) {
-		const char *str;
-
-		str = strings_get(&p->strings, s);
-		if (str && str[0] == '/') {
-			char *base;
-
-			strncpy(buf, str, sizeof (buf) - 1);
-			base = basename(buf);
-			if (!strcmp(base, ".") || !strcmp(base, "/"))
-				continue;
-			strings_add(&basenames, base);
-		}
-	}
-
-	iter = rpmtsInitIterator(ts, RPMTAG_NAME, NULL, 0);
-
-	for (pid = 0; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
-		int i, ds1, ds2 = 0, ds3 = 0;
-		char **dirs = NULL, **bases;
-		int *dirindexes;
-		int_32 *requireflags;
-		char **requires, **requireversions;
 
 		ds1 = get_strings(header, RPMTAG_PROVIDENAME, &requires);
 		ds2 = get_int(header, RPMTAG_PROVIDEFLAGS, &requireflags);
 		ds3 = get_strings(header, RPMTAG_PROVIDEVERSION, &requireversions);
+
 		for (i = 0; i < ds1; i++) {
 			pkgs_add_prov(p, pid, i < ds1 ? requires[i] : 0, i < ds2 ? requireflags[i] & (RPMSENSE_LESS | RPMSENSE_GREATER | RPMSENSE_EQUAL) : 0, i < ds3 ? requireversions[i] : 0);
 		}
@@ -166,9 +137,31 @@ static void pass2(struct pkgs *p, rpmts ts) {
 		free_int(header, &requireflags);
 		free_strings(header, &requireversions);
 
+	}
+	iter = rpmdbFreeIterator(iter);
+
+	return 0;
+}
+
+static int rpm_read_fileprovs(const struct repo *repo, struct pkgs *p, uint firstpid,
+		const struct strings *files, const struct strings *basenames) {
+	struct rpmrepodata *rd = repo->data;
+	rpmts ts = rd->ts;
+	rpmdbMatchIterator iter;
+	Header header;
+	char buf[1000];
+	uint pid, s;
+
+	iter = rpmtsInitIterator(ts, RPMTAG_NAME, NULL, 0);
+
+	for (pid = firstpid; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
+		int i, ds1, ds2 = 0, ds3 = 0;
+		char **dirs = NULL, **bases;
+		int *dirindexes;
+
 		ds1 = get_strings(header, RPMTAG_BASENAMES, &bases);
 		for (i = 0; i < ds1; i++) {
-			if (strings_get_id(&basenames, bases[i]) == -1)
+			if (strings_get_id(basenames, bases[i]) == -1)
 				continue;
 
 			if (dirs == NULL) {
@@ -180,10 +173,10 @@ static void pass2(struct pkgs *p, rpmts ts) {
 			assert(i < ds3 && dirindexes[i] < ds2);
 			snprintf(buf, sizeof (buf), "%s%s", dirs[dirindexes[i]], bases[i]);
 
-			if ((s = strings_get_id(&p->strings, buf)) == -1)
+			if ((s = strings_get_id(files, buf)) == -1)
 				continue;
 			
-			pkgs_add_prov(p, pid, strings_get(&p->strings, s), 0, NULL);
+			pkgs_add_fileprov(p, pid, buf);
 		}
 
 		free_strings(header, &bases);
@@ -194,28 +187,11 @@ static void pass2(struct pkgs *p, rpmts ts) {
 	}
 
 	iter = rpmdbFreeIterator(iter);
-	strings_clean(&basenames);
-}
 
-int rpmreaddb(struct pkgs *p)
-{
-	poptContext context;
-	rpmts ts;
-	char *argv[] = {""};
+	rd->ts = rpmtsFree(ts);
+	rd->context = rpmcliFini(rd->context);
 
-	context = rpmcliInit(1, argv, NULL);
-	ts = rpmtsCreate();
-	rpmtsSetVSFlags(ts, _RPMVSF_NOSIGNATURES | _RPMVSF_NODIGESTS);
-
-	/* read names, rels, vers, requires */
-	pass1(p, ts);
-
-	/* read provides */
-	pass2(p, ts);
-
-	ts = rpmtsFree(ts);
-	context = rpmcliFini(context);
-	return 1;
+	return 0;
 }
 
 int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid) {
@@ -234,7 +210,7 @@ int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid) {
 		return snprintf(str, size, "%s-%s-%s", n, v, r);
 }
 
-int rpminfo(const struct pkgs *p, uint pid) {
+static int rpm_pkg_info(const struct pkgs *p, uint pid) {
 	char cmd[1000];
 	int i, j, len, r;
 	const char *const strs[] = { "(rpm -qi ", NULL,
@@ -255,7 +231,7 @@ int rpminfo(const struct pkgs *p, uint pid) {
 	return system(cmd);
 }
 
-int rpmremove(const struct pkgs *p, int force) {
+static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, int force) {
 	uint i;
 	int len, j = 0, r;
 	char *cmd;
@@ -269,7 +245,8 @@ int rpmremove(const struct pkgs *p, int force) {
 	j += r; len -= r;
 
 	for (i = 0; i < pkgs_get_size(p); i++) {
-		if (!(pkgs_get(p, i)->status & PKG_DELETE))
+		if (pkgs_get(p, i)->repo != repo->repo ||
+					!(pkgs_get(p, i)->status & PKG_DELETE))
 			continue;
 		r = rpmcname(cmd + j, len, p, i);
 		if (r < 0)
@@ -296,4 +273,19 @@ int rpmremove(const struct pkgs *p, int force) {
 	}
 	free(cmd);
 	return r;
+}
+
+static void rpm_repo_clean(struct repo *r) {
+	free(r->data);
+	r->data = NULL;
+}
+
+void rpm_fillrepo(struct repo *r) {
+	r->repo_read = rpm_read;
+	r->repo_read_fileprovs = rpm_read_fileprovs;
+	r->repo_pkg_info = rpm_pkg_info;
+	r->repo_remove_pkgs = rpm_remove_pkgs;
+	r->repo_clean = rpm_repo_clean;
+
+	r->data = malloc(sizeof (struct rpmrepodata));
 }
