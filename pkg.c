@@ -113,7 +113,7 @@ static int pkg_req_pkg(const struct pkgs *p, uint pid, uint what) {
 		n = sets_get_subset_size(&p->required, pid, i);
 		for (j = 0; j < n; j++) {
 			uint req = sets_get(&p->required, pid, i, j);
-			if (req != what && !(pkgs_get(p, req)->status & PKG_DELETE))
+			if (req != what && !(pkgs_get(p, req)->status & PKG_ALLDEL))
 				break;
 		}
 		if (j == n)
@@ -126,10 +126,13 @@ static int leaf_pkg(struct pkgs *p, uint pid) {
 	uint i, n;
 	uint partleaf;
 	
+	if (pkgs_get(p, pid)->status & PKG_DELETED)
+		return 0;
+
 	n = sets_get_subset_size(&p->required_by, pid, 0);
 
 	for (i = 0; i < n; i++)
-		if (!(pkgs_get(p, sets_get(&p->required_by, pid, 0, i))->status & PKG_DELETE))
+		if (!(pkgs_get(p, sets_get(&p->required_by, pid, 0, i))->status & PKG_ALLDEL))
 			return 0;
 
 	if (sets_get_subsets(&p->required_by, pid) <= 1)
@@ -140,7 +143,7 @@ static int leaf_pkg(struct pkgs *p, uint pid) {
 	partleaf = 0;
 	for (i = 0; i < n; i++) {
 		uint r = sets_get(&p->required_by, pid, 1, i);
-		if (!(pkgs_get(p, r)->status & PKG_DELETE)) {
+		if (!(pkgs_get(p, r)->status & PKG_ALLDEL)) {
 		       	if (pkg_req_pkg(p, r, pid))
 				return 0;
 			partleaf = 1;
@@ -154,14 +157,14 @@ static int broken_pkg(struct pkgs *p, uint pid) {
 
 	n = sets_get_subset_size(&p->required, pid, 0);
 	for (i = 0; i < n; i++)
-		if (pkgs_get(p, sets_get(&p->required, pid, 0, i))->status & PKG_DELETE)
+		if (pkgs_get(p, sets_get(&p->required, pid, 0, i))->status & PKG_ALLDEL)
 			return 1;
 	
 	subs = sets_get_subsets(&p->required, pid);
 	for (i = 1; i < subs; i++) {
 		n = sets_get_subset_size(&p->required, pid, i);
 		for (j = 0; j < n; j++)
-			if (!(pkgs_get(p, sets_get(&p->required, pid, i, j))->status & PKG_DELETE))
+			if (!(pkgs_get(p, sets_get(&p->required, pid, i, j))->status & PKG_ALLDEL))
 				break;
 		if (j == n)
 			return 1;
@@ -371,7 +374,7 @@ static void verify_partleaves(struct pkgs *p, uint pid, uint what, int removed) 
 			uint r = sets_get(&p->required, pid, i, j);
 
 			pkg = pkgs_getw(p, r);
-			if (pkg->status & PKG_DELETE)
+			if (pkg->status & PKG_ALLDEL)
 			       continue;
 			if (removed && pkg->status & PKG_PARTLEAF && !leaf_pkg(p, r))
 				pkg->status &= ~PKG_PARTLEAF;
@@ -386,7 +389,7 @@ int pkgs_delete(struct pkgs *p, uint pid, int force) {
 	struct pkg *pkg, *pkg1;
 
 	pkg = pkgs_getw(p, pid);
-	if (pkg->status & PKG_DELETE)
+	if (pkg->status & PKG_ALLDEL)
 		return 0;
 
 	if (!force && !(pkg->status & (PKG_LEAF | PKG_PARTLEAF)))
@@ -418,7 +421,7 @@ int pkgs_delete(struct pkgs *p, uint pid, int force) {
 				r = sets_get(&p->required_by, pid, i, j); 
 				pkg1 = pkgs_getw(p, r);
 
-				if (pkg1->status & PKG_DELETE)
+				if (pkg1->status & PKG_ALLDEL)
 				       continue;
 				if (broken_pkg(p, r))
 					pkg1->status |= PKG_TOBEBROKEN;
@@ -474,7 +477,7 @@ int pkgs_undelete(struct pkgs *p, uint pid, int force) {
 			r = sets_get(&p->required_by, pid, i, j); 
 			pkg = pkgs_getw(p, r);
 
-			if (pkg->status & PKG_DELETE)
+			if (pkg->status & PKG_ALLDEL)
 				continue;
 			if (pkg->status & PKG_TOBEBROKEN && !broken_pkg(p, r))
 				pkg->status &= ~PKG_TOBEBROKEN;
@@ -494,7 +497,7 @@ int pkgs_delete_rec(struct pkgs *p, uint pid) {
 	r = &p->required_by;
 	pkg = pkgs_get(p, pid);
 
-	if (pkg->status & PKG_DELETE)
+	if (pkg->status & PKG_ALLDEL)
 		return 0;
 
 	if (pkg->status & PKG_INLOOP &&	!pkgs_delete(p, pid, 1))
@@ -504,7 +507,7 @@ int pkgs_delete_rec(struct pkgs *p, uint pid) {
 		s = sets_get_subset_size(r, pid, i);
 		for (j = 0; j < s; j++) {
 			req = sets_get(r, pid, i, j);
-			if (pkgs_get(p, req)->status & PKG_DELETE)
+			if (pkgs_get(p, req)->status & PKG_ALLDEL)
 				continue;
 			if (i && !pkg_req_pkg(p, req, pid))
 				continue;

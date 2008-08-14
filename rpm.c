@@ -105,7 +105,7 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 		if (!get_int(header, RPMTAG_EPOCH, &epoch))
 			epoch = &zero;
 		pkgs_set(p, pid, repo->repo, name, *epoch, version, release, arch,
-				PKG_INSTALLED, (*size + 1023) / 1024);
+				0, (*size + 1023) / 1024);
 		free_string(header, &name);
 		free_string(header, &version);
 		free_string(header, &release);

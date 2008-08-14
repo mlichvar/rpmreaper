@@ -70,7 +70,9 @@ uint get_used_pkgs(const struct pkglist *l) {
 }
 
 void select_color_by_status(const struct pkg *pkg) {
-	if (pkg->status & PKG_DELETE)
+	if (pkg->status & PKG_DELETED)
+		attron(COLOR_PAIR(7));
+	else if (pkg->status & PKG_DELETE)
 		attron(COLOR_PAIR(4));
 	else if (pkg->status & (PKG_BROKEN | PKG_TOBEBROKEN))
 		attron(COLOR_PAIR(5));
@@ -81,7 +83,7 @@ void select_color_by_status(const struct pkg *pkg) {
 }
 
 void display_pkg_status(const struct pkg *pkg) {
-	addch(pkg->status & PKG_DELETE ? 'D' : ' ');
+	addch(pkg->status & PKG_DELETE ? 'D' : pkg->status & PKG_DELETED ? 'd' : ' ');
 	addch(pkg->status & PKG_LEAF ? 'L' : pkg->status & PKG_PARTLEAF ? 'l' : ' ');
 	addch(pkg->status & PKG_INLOOP ? 'o' : ' ');
 	addch(pkg->status & PKG_BROKEN ? 'B' : pkg->status & PKG_TOBEBROKEN ? 'b' : ' ');
@@ -424,7 +426,7 @@ static int compare_rows(const void *r1, const void *r2) {
 	p2 = pkgs_get(pkgs, ((const struct row *)r2)->pid);
 	switch (sortby) {
 		case SORT_BY_FLAGS:
-			if ((r = p2->status - p1->status))
+			if ((r = (p2->status ^ PKG_DELETED) - (p1->status ^ PKG_DELETED)))
 				return r;
 		case SORT_BY_SIZE:
 			if ((r = p2->size - p1->size))
@@ -473,7 +475,7 @@ int searchexpr_comp(struct searchexpr *expr, const char *s) {
 				not = 1;
 			else if (!flag && c == '~')
 				flag = 1;
-			else if (flag && (c == 'L' || c == 'l' || c == 'D' ||
+			else if (flag && (c == 'L' || c == 'l' || c == 'D' || c == 'd' ||
 						c == 'B' || c == 'b' || c == 'o')) {
 				uint *field = not ? &expr->unset : &expr->set;
 
@@ -481,6 +483,7 @@ int searchexpr_comp(struct searchexpr *expr, const char *s) {
 					case 'L': *field |= PKG_LEAF; break;
 					case 'l': *field |= PKG_PARTLEAF; break;
 					case 'D': *field |= PKG_DELETE; break;
+					case 'd': *field |= PKG_DELETED; break;
 					case 'B': *field |= PKG_BROKEN; break;
 					case 'b': *field |= PKG_TOBEBROKEN; break;
 					case 'o': *field |= PKG_INLOOP; break;
@@ -868,6 +871,7 @@ void tui(struct repos *r, const char *limit) {
 		init_pair(4, COLOR_MAGENTA, COLOR_BLACK);
 		init_pair(5, COLOR_RED, COLOR_BLACK);
 		init_pair(6, COLOR_CYAN, COLOR_BLACK);
+		init_pair(7, COLOR_BLUE, COLOR_BLACK);
 		bkgdset(COLOR_PAIR(2));
 	}
 	cbreak();
