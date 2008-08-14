@@ -72,6 +72,7 @@ static void free_int(Header h, int_32 **i) {
 }
 
 struct rpmrepodata {
+	const char *root;
 	poptContext context;
 	rpmts ts;
 };
@@ -85,6 +86,7 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 
 	rd->context = rpmcliInit(1, argv, NULL);
 	rd->ts = rpmtsCreate();
+	rpmtsSetRootDir(rd->ts, ((struct rpmrepodata *)repo->data)->root);
 	rpmtsSetVSFlags(rd->ts, _RPMVSF_NOSIGNATURES | _RPMVSF_NODIGESTS);
 
 	iter = rpmtsInitIterator(rd->ts, RPMTAG_NAME, NULL, 0);
@@ -210,19 +212,21 @@ int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid) {
 		return snprintf(str, size, "%s-%s-%s", n, v, r);
 }
 
-static int rpm_pkg_info(const struct pkgs *p, uint pid) {
+static int rpm_pkg_info(const struct repo *repo, const struct pkgs *p, uint pid) {
 	char cmd[1000];
 	int i, j, len, r;
-	const char *const strs[] = { "(rpm -qi ", NULL,
-		";echo;echo Files:;rpm -ql ", NULL, ") | less" };
+	const char *const strs[] = { "(rpm -qi -r ", (const char *)1, " ", 0,
+		";echo;echo Files:;rpm -ql -r ", (const char *)1, " ", 0, ") | less" };
 
 	j = 0;
 	len = sizeof (cmd);
 	for (i = 0; i < sizeof (strs) / sizeof (char *); i++) {
-		if (strs[i])
-			r = snprintf(cmd + j, len, strs[i]);
-		else
+		if (strs[i] == 0)
 			r = rpmcname(cmd + j, len, p, pid);
+		else if (strs[i] == (const char *)1)
+			r = snprintf(cmd + j, len, ((struct rpmrepodata *)repo->data)->root);
+		else 
+			r = snprintf(cmd + j, len, strs[i]);
 		if (r < 0 || r >= len)
 			return 1;
 		j += r;
@@ -239,7 +243,8 @@ static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, int fo
 	len = 64;
 	cmd = malloc(len);
 
-	r = snprintf(cmd, len, force ? "rpm -e --nodeps " : "rpm -e ");
+	r = snprintf(cmd, len, force ? "rpm -e --nodeps -r %s " : "rpm -e -r %s ",
+			((struct rpmrepodata *)repo->data)->root);
 	if (r < 0 || r >= len)
 		return 1;
 	j += r; len -= r;
@@ -280,7 +285,7 @@ static void rpm_repo_clean(struct repo *r) {
 	r->data = NULL;
 }
 
-void rpm_fillrepo(struct repo *r) {
+void rpm_fillrepo(struct repo *r, const char *root) {
 	r->repo_read = rpm_read;
 	r->repo_read_fileprovs = rpm_read_fileprovs;
 	r->repo_pkg_info = rpm_pkg_info;
@@ -288,4 +293,5 @@ void rpm_fillrepo(struct repo *r) {
 	r->repo_clean = rpm_repo_clean;
 
 	r->data = malloc(sizeof (struct rpmrepodata));
+	((struct rpmrepodata *)r->data)->root = root;
 }

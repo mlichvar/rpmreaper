@@ -23,6 +23,6 @@
 #define RPMMAXCNAME 1000
 
 int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid);
-void rpm_fillrepo(struct repo *r);
+void rpm_fillrepo(struct repo *r, const char *root);
 
 #endif

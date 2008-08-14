@@ -3,7 +3,7 @@
 rpmreaper \- A tool for removing unnecessary packages from system
 
 .SH SYNOPSIS
-\fBrpmreaper\fR [\fB-lvh\fR] [\fIlimit\fR]
+\fBrpmreaper\fR [\fB-lvh\fR] [\fB-r\fR \fIroot\fR] [\fIlimit\fR]
 
 .SH DESCRIPTION
 rpmreaper is a simple ncurses application with a mutt-like interface that
@@ -17,13 +17,15 @@ List packages matching \fIlimit\fR, or all installed if not specified.
 \fB-v\fR
 Verbose listing. 
 .TP 8
+\fB-r\fR \fIroot\fR
+Specify root directory (default is \fB/\fR).
+.TP 8
 \fB-h\fR
 Print help.
 
 .PP
-The ncurses interface is used when started without any option. A \fIlimit\fR
-can be specified to limit the list of displayed packages. The syntax is
-described in the \fBSEARCH EXPRESSIONS\fR section.
+A \fIlimit\fR can be specified to limit the list of displayed packages. The
+syntax is described in the \fBSEARCH EXPRESSIONS\fR section.
 
 .SH KEYS
 .TP 8

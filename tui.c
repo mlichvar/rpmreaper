@@ -1040,9 +1040,9 @@ void list_pkgs(struct repos *r, const char *limit, int verbose) {
 int main(int argc, char **argv) {
 	struct repos r;
 	int opt, list = 0, verbose = 0;
-	const char *limit = NULL;
+	const char *limit = NULL, *rpmroot = "/";
 
-	while ((opt = getopt(argc, argv, "lvh")) != -1) {
+	while ((opt = getopt(argc, argv, "lvr:h")) != -1) {
 		switch (opt) {
 			case 'l':
 				list = 1;
@@ -1050,18 +1050,22 @@ int main(int argc, char **argv) {
 			case 'v':
 				verbose = 1;
 				break;
+			case 'r':
+				rpmroot = optarg;
+				break;
 			case 'h':
 			default:
 				printf("usage: rpmreaper [options] [limit]\n");
-				printf("  -l	list packages\n");
-				printf("  -v	verbose listing\n");
-				printf("  -h	print usage\n");
+				printf("  -l        list packages\n");
+				printf("  -v        verbose listing\n");
+				printf("  -r root   specify root (default /)\n");
+				printf("  -h        print usage\n");
 				return 0;
 		}
 	}
 
 	repos_init(&r);
-	rpm_fillrepo(repos_new(&r));
+	rpm_fillrepo(repos_new(&r), rpmroot);
 
 	if (optind < argc)
 		limit = argv[optind];
