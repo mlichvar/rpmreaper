@@ -19,8 +19,8 @@ clean:
 $(NAME): $(objs)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-rpm.o dep.o: CFLAGS += -Wno-return-type
-rpm.o dep.o: CPPFLAGS += -I/usr/include/rpm
+rpm.o dep.o: override CPPFLAGS += -I/usr/include/rpm $(shell pkg-config \
+	--atleast-version 4.5.90 rpm 2> /dev/null || echo -D_RPM_4_4_COMPAT)
 
 install: $(NAME)
 	mkdir -p $(bindir) $(man1dir)
