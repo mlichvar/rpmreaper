@@ -360,6 +360,16 @@ void pkgs_match_deps(struct pkgs *p) {
 	find_sccs(p);
 }
 
+uint pkgs_get_scc(const struct pkgs *p, uint pid) {
+	uint iter = 0;
+
+	return pkgs_get(p, pid)->status & PKG_INLOOP ? sets_find(&p->sccs, pid, &iter) : -1;
+}
+
+int pkgs_in_scc(const struct pkgs *p, uint scc, uint pid) {
+	return sets_has(&p->sccs, scc, pid);
+}
+
 static void verify_partleaves(struct pkgs *p, uint pid, uint what, int removed) {
 	uint i, j, n, subs;
 	struct pkg *pkg;

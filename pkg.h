@@ -80,6 +80,9 @@ uint pkgs_get_prov(const struct pkgs *p, uint pid, uint prov);
 
 void pkgs_match_deps(struct pkgs *p);
 
+uint pkgs_get_scc(const struct pkgs *p, uint pid);
+int pkgs_in_scc(const struct pkgs *p, uint scc, uint pid);
+
 int pkgs_delete(struct pkgs *p, uint pid, int force);
 int pkgs_undelete(struct pkgs *p, uint pid, int force);
 int pkgs_delete_rec(struct pkgs *p, uint pid);

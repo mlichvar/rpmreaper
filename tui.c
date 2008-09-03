@@ -384,8 +384,7 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int trans) {
 		} else
 			move_rows(l, l->cursor + 1, l->cursor + deps + 1);
 
-		i = 0;
-		scc = pkgs_get(p, pid)->status & PKG_INLOOP ? sets_find(&p->sccs, pid, &i) : -1;
+		scc = pkgs_get_scc(p, pid);
 
 		for (i = 0, dep = 1; i < sets_get_subsets(r, s); i++) {
 			d = sets_get_subset_size(r, s, i);
@@ -398,7 +397,7 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int trans) {
 				row->flags = 0;
 				if (i) 
 					row->flags |= FLAG_REQOR;
-				if (scc != -1 && sets_has(&p->sccs, scc, pid2))
+				if (scc != -1 && pkgs_in_scc(p, scc, pid2))
 					row->flags |= FLAG_PLOOP;
 				if (trans)
 					row->flags |= FLAG_TRANS;
@@ -653,7 +652,9 @@ void print_pkgs(const struct pkgs *p, const char *limit, int verbose, int onelin
 		if (pkg->status & PKG_BROKEN)
 			printf(" BROKEN");
 		if (pkg->status & PKG_INLOOP)
-			printf(" INLOOP");
+			printf(" INLOOP:%d", pkgs_get_scc(p, i));
+		if (pkg->status & PKG_DELETED)
+			printf(" DELETED");
 		printf("\n");
 	}
 	if (oneline)
