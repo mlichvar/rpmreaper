@@ -67,23 +67,26 @@ static uint dephash(uint name) {
 }
 
 uint deps_add(struct deps *deps, const char *name, int flags, const char *vers) {
-	uint i, iter = 0, hash, size = array_get_size(&deps->names), epoch, ver, rel, nam;
-	char *v, *r, buf[1000];
+	uint epoch = 0;
+	char *v = NULL, *r = NULL, buf[1000];
 	
-	epoch = 0;
 	if (vers && *vers) {
 		buf[sizeof (buf) - 1] = '\0';
 		strncpy(buf, vers, sizeof (buf) - 1);
 		v = parse_epoch(buf, &epoch);
 		r = parse_ver(v);
-		if (r == NULL)
-			r = "";
-	} else
-		v = r = "";
-	nam = strings_add(deps->strings, name);
-	ver = strings_add(deps->strings, v);
-	rel = strings_add(deps->strings, r);
+	}
+	return deps_add_evr(deps, name, flags, epoch, v, r);
+}
 	
+uint deps_add_evr(struct deps *deps, const char *name, int flags, uint epoch,
+		const char *version, const char *release) {
+	uint i, iter = 0, hash, size = array_get_size(&deps->names), ver, rel, nam;
+
+	nam = strings_add(deps->strings, name);
+	ver = strings_add(deps->strings, version != NULL ? version : "");
+	rel = strings_add(deps->strings, release != NULL ? release : "");
+
 	if (hashtable_resize(&deps->hashtable)) {
 		for (i = 0; i < size; i++) {
 			hash = dephash(array_get(&deps->names, i));

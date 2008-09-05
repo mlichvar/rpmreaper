@@ -82,6 +82,16 @@ void pkgs_add_prov(struct pkgs *p, uint pid, const char *prov, int flags, const 
 	sets_add(&p->provides, pid, 0, deps_add(&p->deps, prov, flags, ver));
 }
 
+void pkgs_add_req_evr(struct pkgs *p, uint pid, const char *req, int flags,
+		uint epoch, const char *version, const char *release) {
+	sets_add(&p->requires, pid, 0, deps_add_evr(&p->deps, req, flags, epoch, version, release));
+}
+
+void pkgs_add_prov_evr(struct pkgs *p, uint pid, const char *prov, int flags,
+		uint epoch, const char *version, const char *release) {
+	sets_add(&p->provides, pid, 0, deps_add_evr(&p->deps, prov, flags, epoch, version, release));
+}
+
 void pkgs_add_fileprov(struct pkgs *p, uint pid, const char *file) {
 	sets_add(&p->fileprovides, pid, 0, deps_add(&p->deps, file, 0, 0));
 }

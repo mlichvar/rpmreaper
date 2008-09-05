@@ -72,6 +72,10 @@ void pkgs_add_req(struct pkgs *p, uint pid, const char *req, int flags,
 		const char *ver);
 void pkgs_add_prov(struct pkgs *p, uint pid, const char *prov, int flags,
 		const char *ver);
+void pkgs_add_req_evr(struct pkgs *p, uint pid, const char *req, int flags,
+		uint epoch, const char *version, const char *release);
+void pkgs_add_prov_evr(struct pkgs *p, uint pid, const char *prov, int flags,
+		uint epoch, const char *version, const char *release);
 void pkgs_add_fileprov(struct pkgs *p, uint pid, const char *file);
 uint pkgs_get_req_size(const struct pkgs *p, uint pid);
 uint pkgs_get_prov_size(const struct pkgs *p, uint pid);

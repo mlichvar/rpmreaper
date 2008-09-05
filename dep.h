@@ -33,6 +33,8 @@ struct deps {
 void deps_init(struct deps *deps, struct strings *strings);
 void deps_clean(struct deps *deps);
 uint deps_add(struct deps *deps, const char *name, int flags, const char *ver);
+uint deps_add_evr(struct deps *deps, const char *name, int flags,
+		uint epoch, const char *version, const char *release);
 uint deps_find(const struct deps *deps, uint dep, uint *iter);
 int deps_match(const struct deps *deps, uint x, uint y);
 
