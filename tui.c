@@ -106,7 +106,7 @@ void display_help() {
 	attron(COLOR_PAIR(1));
 	move(0, 0);
 	hline(' ', COLS);
-	addnstr("q:Quit  d,D,E:Del  u,U:Undel  r,R:Req  b,B:ReqBy  i:Info  c,C:Commit  F1:Help", COLS);
+	addnstr("q:Quit  d,D,E:Del  u,U,I:Undel  r,R:Req  b,B:ReqBy  i:Info  c,C:Commit  F1:Help", COLS);
 }
 
 void display_status(const struct pkgs *p) {
@@ -1005,6 +1005,9 @@ void tui(struct repos *r, const char *limit) {
 				break;
 			case 'E':
 				pkgs_delete_rec(p, get_row(&l, l.cursor)->pid);
+				break;
+			case 'I':
+				pkgs_undelete_rec(p, get_row(&l, l.cursor)->pid);
 				break;
 			case 'i':
 				display_pkg_info(r, get_row(&l, l.cursor)->pid);

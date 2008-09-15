@@ -90,6 +90,7 @@ int pkgs_in_scc(const struct pkgs *p, uint scc, uint pid);
 int pkgs_delete(struct pkgs *p, uint pid, int force);
 int pkgs_undelete(struct pkgs *p, uint pid, int force);
 int pkgs_delete_rec(struct pkgs *p, uint pid);
+int pkgs_undelete_rec(struct pkgs *p, uint pid);
 
 void pkgs_get_trans_reqs(const struct pkgs *p, uint pid, int reqby, struct sets *set);
 #endif
