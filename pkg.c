@@ -60,6 +60,10 @@ void pkgs_set(struct pkgs *pkgs, uint pid, uint repo, const char *name, int epoc
 	p->size = kbytes;
 	p->status = status;
 	pkgs->pkgs_kbytes += kbytes;
+	if (status & PKG_DELETE) {
+		pkgs->delete_pkgs++;
+		pkgs->delete_pkgs_kbytes += kbytes;
+	}
 }
 
 uint pkgs_get_size(const struct pkgs *pkgs) {
@@ -404,6 +408,25 @@ static void verify_partleaves(struct pkgs *p, uint pid, uint what, int removed) 
 	}
 }
 
+static void break_pkg(struct pkgs *p, uint pid) {
+	struct pkg *pkg = pkgs_getw(p, pid);
+
+	if (!(pkg->status & PKG_TOBEBROKEN)) {
+		pkg->status |= PKG_TOBEBROKEN;
+		p->break_pkgs++;
+	}
+
+}
+
+static void unbreak_pkg(struct pkgs *p, uint pid) {
+	struct pkg *pkg = pkgs_getw(p, pid);
+
+	if (pkg->status & PKG_TOBEBROKEN) {
+		pkg->status &= ~PKG_TOBEBROKEN;
+		p->break_pkgs--;
+	}
+}
+
 int pkgs_delete(struct pkgs *p, uint pid, int force) {
 	uint i, j, n, r, subs;
 	struct pkg *pkg, *pkg1;
@@ -418,7 +441,7 @@ int pkgs_delete(struct pkgs *p, uint pid, int force) {
 	pkg->status |= PKG_DELETE;
 	p->delete_pkgs++;
 	p->delete_pkgs_kbytes += pkg->size;
-	pkg->status &= ~PKG_TOBEBROKEN;
+	unbreak_pkg(p, pid);
 
 	/* check if there are new leaves */
 	subs = sets_get_subsets(&p->required, pid);
@@ -439,12 +462,11 @@ int pkgs_delete(struct pkgs *p, uint pid, int force) {
 			n = sets_get_subset_size(&p->required_by, pid, i);
 			for (j = 0; j < n; j++) {
 				r = sets_get(&p->required_by, pid, i, j); 
-				pkg1 = pkgs_getw(p, r);
 
-				if (pkg1->status & PKG_ALLDEL)
+				if (pkgs_get(p, r)->status & PKG_ALLDEL)
 				       continue;
 				if (broken_pkg(p, r))
-					pkg1->status |= PKG_TOBEBROKEN;
+					break_pkg(p, r);
 				if (i && pkg->status & PKG_PARTLEAF)
 					verify_partleaves(p, r, pid, 1);
 			}
@@ -469,7 +491,7 @@ int pkgs_undelete(struct pkgs *p, uint pid, int force) {
 			pkg->status |= PKG_DELETE;
 			return 0;
 		}
-		pkg->status |= PKG_TOBEBROKEN;
+		break_pkg(p, pid);
 	}
 
 	p->delete_pkgs--;
@@ -494,13 +516,15 @@ int pkgs_undelete(struct pkgs *p, uint pid, int force) {
 	for (i = 0; i < subs; i++) {
 		n = sets_get_subset_size(&p->required_by, pid, i);
 		for (j = 0; j < n; j++) {
-			r = sets_get(&p->required_by, pid, i, j); 
-			pkg = pkgs_getw(p, r);
+			uint s;
 
-			if (pkg->status & PKG_ALLDEL)
+			r = sets_get(&p->required_by, pid, i, j); 
+			s = pkgs_get(p, r)->status;
+
+			if (s & PKG_ALLDEL)
 				continue;
-			if (pkg->status & PKG_TOBEBROKEN && !broken_pkg(p, r))
-				pkg->status &= ~PKG_TOBEBROKEN;
+			if (s & PKG_TOBEBROKEN && !broken_pkg(p, r))
+				unbreak_pkg(p, r);
 			if (i)
 				verify_partleaves(p, r, pid, 0);
 		}

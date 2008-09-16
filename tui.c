@@ -113,22 +113,22 @@ void display_status(const struct pkgs *p) {
 	attron(COLOR_PAIR(1));
 	move(LINES - 2, 0);
 	hline('-', COLS);
-	printw("---[ Pkgs: %d (", pkgs_get_size(p));
+	printw("-[ Pkgs: %d (", pkgs_get_size(p));
 	display_size(p->pkgs_kbytes, 0);
 	printw(")  Del: %d (", p->delete_pkgs);
 	display_size(p->delete_pkgs_kbytes, 0);
-	printw(") ]");
+	printw(")  Break: %d ]", p->break_pkgs);
 }
 
 void display_liststatus(const struct pkglist *l) {
 	const char * const sortnames[] = { "name", "flags", "size" };
 
-	if (COLS > 78 && l->limit != NULL && l->limit[0] != '\0')
-		mvprintw(LINES - 2, COLS - 27, "(limit)");
-	if (COLS > 68)
-		mvprintw(LINES - 2, COLS - 17, "(%s)", sortnames[l->sortby]);
-	if (COLS > 58)
-		mvprintw(LINES - 2, COLS - 7, "(%d%%)", l->first + l->lines > get_used_pkgs(l) ? 100 : (l->first + l->lines) * 100 / get_used_pkgs(l));
+	if (COLS > 79 && l->limit != NULL && l->limit[0] != '\0')
+		mvprintw(LINES - 2, COLS - 22, "(limit)");
+	if (COLS > 71)
+		mvprintw(LINES - 2, COLS - 14, "(%s)", sortnames[l->sortby]);
+	if (COLS > 63)
+		mvprintw(LINES - 2, COLS - 6, "(%d%%)", l->first + l->lines > get_used_pkgs(l) ? 100 : (l->first + l->lines) * 100 / get_used_pkgs(l));
 }
 
 void display_message(const char *m, int attr) {

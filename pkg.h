@@ -54,9 +54,10 @@ struct pkgs {
 	struct sets required_by;
 	struct sets sccs;
 
-	int delete_pkgs;
-	int pkgs_kbytes;
-	int delete_pkgs_kbytes;
+	uint delete_pkgs;
+	uint break_pkgs;
+	uint pkgs_kbytes;
+	uint delete_pkgs_kbytes;
 };
 
 void pkgs_init(struct pkgs *p);
