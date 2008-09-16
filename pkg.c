@@ -398,8 +398,6 @@ static void verify_partleaves(struct pkgs *p, uint pid, uint what, int removed) 
 			uint r = sets_get(&p->required, pid, i, j);
 
 			pkg = pkgs_getw(p, r);
-			if (pkg->status & PKG_ALLDEL)
-			       continue;
 			if (removed && pkg->status & PKG_PARTLEAF && !leaf_pkg(p, r))
 				pkg->status &= ~PKG_PARTLEAF;
 			if (!removed && !(pkg->status & (PKG_LEAF | PKG_PARTLEAF)) && leaf_pkg(p, r))
@@ -467,7 +465,7 @@ int pkgs_delete(struct pkgs *p, uint pid, int force) {
 				       continue;
 				if (broken_pkg(p, r))
 					break_pkg(p, r);
-				if (i && pkg->status & PKG_PARTLEAF)
+				if (i)
 					verify_partleaves(p, r, pid, 1);
 			}
 		}
