@@ -106,9 +106,9 @@ int repos_read(struct repos *repos) {
 
 	for (i = 0; i < array_get_size(&repos->repos); i++) {
 		r = repos_getw(repos, i);
-		if (r->repo_read_fileprovs == NULL)
+		if (r->repo_read_provs == NULL)
 			continue;
-		r->repo_read_fileprovs(r, &repos->pkgs, array_get(&firstpids, i), &files, &basenames);
+		r->repo_read_provs(r, &repos->pkgs, array_get(&firstpids, i), &files, &basenames);
 	}
 
 	array_clean(&firstpids);

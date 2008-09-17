@@ -104,9 +104,9 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 #else
 		int r;
 		uint32_t *epoch, *size, zero = 0;
-		rpmds requires, provides;
-		const char *req, *reqver, *prov, *provver;
-		rpmsenseFlags reqflags, provflags;
+		rpmds requires;
+		const char *req, *reqver;
+		rpmsenseFlags reqflags;
 		const
 #endif
 		char *release, *name, *version, *arch;
@@ -152,17 +152,6 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 		free_int(header, &requireflags);
 		free_strings(header, &requireversions);
 
-		ds1 = get_strings(header, RPMTAG_PROVIDENAME, &requires);
-		ds2 = get_int(header, RPMTAG_PROVIDEFLAGS, &requireflags);
-		ds3 = get_strings(header, RPMTAG_PROVIDEVERSION, &requireversions);
-
-		for (i = 0; i < ds1; i++) {
-			pkgs_add_prov(p, pid, i < ds1 ? requires[i] : 0, i < ds2 ? requireflags[i] & (RPMSENSE_LESS | RPMSENSE_GREATER | RPMSENSE_EQUAL) : 0, i < ds3 ? requireversions[i] : 0);
-		}
-
-		free_strings(header, &requires);
-		free_int(header, &requireflags);
-		free_strings(header, &requireversions);
 #else
 		requires = rpmdsNew(header, RPMTAG_REQUIRENAME, 0);
 		while (rpmdsNext(requires) != -1) {
@@ -176,17 +165,6 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 			}
 		}
 		rpmdsFree(requires);
-
-		provides = rpmdsNew(header, RPMTAG_PROVIDENAME, 0);
-		while (rpmdsNext(provides) != -1) {
-			prov = rpmdsN(provides);
-			provflags = rpmdsFlags(provides);
-			provver = rpmdsEVR(provides);
-			provflags &= RPMSENSE_LESS | RPMSENSE_GREATER |
-				RPMSENSE_EQUAL;
-			pkgs_add_prov(p, pid, prov, provflags, provver);
-		};
-		rpmdsFree(provides);
 #endif
 	}
 #ifndef _RPM_4_4_COMPAT
@@ -197,7 +175,7 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 	return 0;
 }
 
-static int rpm_read_fileprovs(const struct repo *repo, struct pkgs *p, uint firstpid,
+static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid,
 		const struct strings *files, const struct strings *basenames) {
 	struct rpmrepodata *rd = repo->data;
 	rpmts ts = rd->ts;
@@ -216,9 +194,21 @@ static int rpm_read_fileprovs(const struct repo *repo, struct pkgs *p, uint firs
 
 	for (pid = firstpid; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
 #ifdef _RPM_4_4_COMPAT
-		int i, ds1, ds2 = 0, ds3 = 0;
-		char **dirs = NULL, **bases;
-		int *dirindexes;
+		int i, ds1, ds2 = 0, ds3 = 0, *dirindexes;
+		char **dirs = NULL, **bases, **provides, **provideversions;
+		int_32 *provideflags;
+
+		ds1 = get_strings(header, RPMTAG_PROVIDENAME, &provides);
+		ds2 = get_int(header, RPMTAG_PROVIDEFLAGS, &provideflags);
+		ds3 = get_strings(header, RPMTAG_PROVIDEVERSION, &provideversions);
+
+		for (i = 0; i < ds1; i++) {
+			pkgs_add_prov(p, pid, i < ds1 ? provides[i] : 0, i < ds2 ? provideflags[i] & (RPMSENSE_LESS | RPMSENSE_GREATER | RPMSENSE_EQUAL) : 0, i < ds3 ? provideversions[i] : 0);
+		}
+
+		free_strings(header, &provides);
+		free_int(header, &provideflags);
+		free_strings(header, &provideversions);
 
 		ds1 = get_strings(header, RPMTAG_BASENAMES, &bases);
 		for (i = 0; i < ds1; i++) {
@@ -247,6 +237,20 @@ static int rpm_read_fileprovs(const struct repo *repo, struct pkgs *p, uint firs
 		}
 #else
 		int r, dirsread = 0;
+		rpmds provides;
+		const char *prov, *provver;
+		rpmsenseFlags provflags;
+
+		provides = rpmdsNew(header, RPMTAG_PROVIDENAME, 0);
+		while (rpmdsNext(provides) != -1) {
+			prov = rpmdsN(provides);
+			provflags = rpmdsFlags(provides);
+			provver = rpmdsEVR(provides);
+			provflags &= RPMSENSE_LESS | RPMSENSE_GREATER |
+				RPMSENSE_EQUAL;
+			pkgs_add_prov(p, pid, prov, provflags, provver);
+		};
+		rpmdsFree(provides);
 
 		r = headerGet(header, RPMTAG_BASENAMES, bases, HEADERGET_DEFAULT);
 		if (r != 1)
@@ -389,7 +393,7 @@ static void rpm_repo_clean(struct repo *r) {
 
 void rpm_fillrepo(struct repo *r, const char *root) {
 	r->repo_read = rpm_read;
-	r->repo_read_fileprovs = rpm_read_fileprovs;
+	r->repo_read_provs = rpm_read_provs;
 	r->repo_pkg_info = rpm_pkg_info;
 	r->repo_remove_pkgs = rpm_remove_pkgs;
 	r->repo_clean = rpm_repo_clean;

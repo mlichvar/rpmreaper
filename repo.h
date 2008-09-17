@@ -24,7 +24,7 @@ struct repo {
 	uint repo;
 	void *data;
 	int (*repo_read)(const struct repo *repo, struct pkgs *p, uint firstpid);
-	int (*repo_read_fileprovs)(const struct repo *repo, struct pkgs *p, uint firstpid,
+	int (*repo_read_provs)(const struct repo *repo, struct pkgs *p, uint firstpid,
 			const struct strings *files, const struct strings *basenames);
 	int (*repo_pkg_info)(const struct repo *repo, const struct pkgs *p, uint pid);
 	int (*repo_remove_pkgs)(const struct repo *repo, const struct pkgs *p, int force);

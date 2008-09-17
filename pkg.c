@@ -83,6 +83,9 @@ void pkgs_add_req(struct pkgs *p, uint pid, const char *req, int flags, const ch
 }
 
 void pkgs_add_prov(struct pkgs *p, uint pid, const char *prov, int flags, const char *ver) {
+	/* ignore needless provides */
+	if (strings_get_id(&p->strings, prov) == -1)
+		return;
 	sets_add(&p->provides, pid, 0, deps_add(&p->deps, prov, flags, ver));
 }
 
@@ -93,11 +96,13 @@ void pkgs_add_req_evr(struct pkgs *p, uint pid, const char *req, int flags,
 
 void pkgs_add_prov_evr(struct pkgs *p, uint pid, const char *prov, int flags,
 		uint epoch, const char *version, const char *release) {
+	if (strings_get_id(&p->strings, prov) == -1)
+		return;
 	sets_add(&p->provides, pid, 0, deps_add_evr(&p->deps, prov, flags, epoch, version, release));
 }
 
 void pkgs_add_fileprov(struct pkgs *p, uint pid, const char *file) {
-	sets_add(&p->fileprovides, pid, 0, deps_add(&p->deps, file, 0, 0));
+	sets_add(&p->fileprovides, pid, 0, deps_add_evr(&p->deps, file, 0, 0, NULL, NULL));
 }
 
 uint pkgs_get_req_size(const struct pkgs *p, uint pid) {
