@@ -102,7 +102,12 @@ void pkgs_add_prov_evr(struct pkgs *p, uint pid, const char *prov, int flags,
 }
 
 void pkgs_add_fileprov(struct pkgs *p, uint pid, const char *file) {
-	sets_add(&p->fileprovides, pid, 0, deps_add_evr(&p->deps, file, 0, 0, NULL, NULL));
+	struct sets *prov;
+
+	/* save fileprovides directly if reading in the same pass as provides */
+	prov = pid + 1 >= sets_get_size(&p->provides) ? &p->provides : &p->fileprovides;
+
+	sets_add(prov, pid, 0, deps_add_evr(&p->deps, file, 0, 0, NULL, NULL));
 }
 
 uint pkgs_get_req_size(const struct pkgs *p, uint pid) {
@@ -350,7 +355,8 @@ void pkgs_match_deps(struct pkgs *p) {
 
 	n = pkgs_get_size(p);
 
-	sets_merge(&p->provides, &p->fileprovides);
+	if (sets_get_size(&p->fileprovides))
+		sets_merge(&p->provides, &p->fileprovides);
 	sets_clean(&p->fileprovides);
 
 	sets_set_size(&p->requires, n);
