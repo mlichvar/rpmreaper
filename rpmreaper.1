@@ -39,12 +39,12 @@ Scroll screen.
 Mark the highlighted package to be removed.
 .TP 8
 \fBD\fR
-Mark the highlighted package to be removed even when there are packages that depend on
-the package.
+Mark the highlighted package to be removed even when there are unmarked
+packages depending on the package.
 .TP 8
 \fBE\fR
-Mark the highlighted package and all necessary packages to be removed without
-breaking dependencies.
+Recursively mark the highlighted package and unmarked packages depending on the
+package to be removed.
 .TP 8
 \fBu\fR
 Unmark the highlighted package.
@@ -53,9 +53,10 @@ Unmark the highlighted package.
 Unmark the highlighted package even when some dependencies are marked to be removed.
 .TP 8
 \fBI\fR
-Recursively unmark the highlighted package. Packages where a choice has to be
-made to satisfy a dependency will have the \fBb\fR flag and the missing
-packages should be unmarked manually.
+Recursively unmark the highlighted package and marked packages that the package
+depends on. Packages where a choice has to be made to satisfy a dependency will
+be left with the \fBb\fR flag and the missing packages should be unmarked
+manually.
 .TP 8
 \fBr, R\fR
 Show/hide subtree of packages that are required by (with \fBR\fR also indirectly) the highlighted package.

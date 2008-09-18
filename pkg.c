@@ -550,10 +550,8 @@ int pkgs_delete_rec(struct pkgs *p, uint pid) {
 	r = &p->required_by;
 	pkg = pkgs_get(p, pid);
 
-	if (pkg->status & PKG_ALLDEL)
-		return 0;
-
-	if (pkg->status & PKG_INLOOP &&	!pkgs_delete(p, pid, 1))
+	if (!(pkg->status & PKG_ALLDEL) && pkg->status & PKG_INLOOP &&
+			!pkgs_delete(p, pid, 1))
 		return 0;
 
 	for (i = 0; i < sets_get_subsets(r, pid); i++) {
@@ -583,10 +581,8 @@ int pkgs_undelete_rec(struct pkgs *p, uint pid) {
 	r = &p->required;
 	pkg = pkgs_get(p, pid);
 
-	if (!(pkg->status & PKG_ALLDEL))
-		return 0;
-
-	if (pkg->status & PKG_INLOOP &&	!pkgs_undelete(p, pid, 1))
+	if (pkg->status & PKG_ALLDEL && pkg->status & PKG_INLOOP &&
+			!pkgs_undelete(p, pid, 1))
 		return 0;
 
 	for (i = 0; i < 1 && i < sets_get_subsets(r, pid); i++) {
