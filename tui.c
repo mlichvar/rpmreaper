@@ -623,46 +623,47 @@ void search_pkglist(struct pkglist *l, const struct pkgs *p, const char *searchr
 	searchexpr_clean(&expr);
 }
 
-void print_pkg(const struct pkgs *p, uint pid) {
+void print_pkg(FILE *f, const struct pkgs *p, uint pid) {
 	char cname[RPMMAXCNAME];
 
 	rpmcname(cname, sizeof (cname), p, pid);
-	printf("%s", cname);
+	fprintf(f, "%s", cname);
 }
 
-void print_pkgs(const struct pkgs *p, const char *limit, int verbose, int oneline) {
+void print_pkgs(FILE *f, const struct pkgs *p, const char *limit, int verbose, int oneline) {
 	const struct pkg *pkg;
 	struct searchexpr expr;
-	uint i;
+	uint i, j;
 
 	if (limit != NULL && searchexpr_comp(&expr, limit))
 		return;
 
-	for (i = 0; i < pkgs_get_size(p); i++) {
+	for (i = j = 0; i < pkgs_get_size(p); i++) {
 		pkg = pkgs_get(p, i);
 		if (limit != NULL && !searchexpr_match(p, i, &expr))
 			continue;
+		j++;
 		if (verbose)
-			printf("%d ", i);
-		print_pkg(p, i);
+			fprintf(f, "%d ", i);
+		print_pkg(f, p, i);
 		if (!verbose) {
-			printf(oneline ? " " : "\n");
+			fprintf(f, oneline ? " " : "\n");
 			continue;
 		}
 		if (pkg->status & PKG_LEAF)
-			printf(" LEAF");
+			fprintf(f, " LEAF");
 		if (pkg->status & PKG_PARTLEAF)
-			printf(" PARTLEAF");
+			fprintf(f, " PARTLEAF");
 		if (pkg->status & PKG_BROKEN)
-			printf(" BROKEN");
+			fprintf(f, " BROKEN");
 		if (pkg->status & PKG_INLOOP)
-			printf(" INLOOP:%d", pkgs_get_scc(p, i));
+			fprintf(f, " INLOOP:%d", pkgs_get_scc(p, i));
 		if (pkg->status & PKG_DELETED)
-			printf(" DELETED");
-		printf("\n");
+			fprintf(f, " DELETED");
+		fprintf(f, "\n");
 	}
-	if (oneline)
-		printf("\n");
+	if (oneline && j)
+		fprintf(f, "\n");
 
 	if (limit != NULL)
 		searchexpr_clean(&expr);
@@ -1034,7 +1035,7 @@ void tui(struct repos *r, const char *limit) {
 		int remove = ask_remove_pkgs(p);
 		endwin();
 		if (!remove)
-			print_pkgs(p, "~D", 0, 1);
+			print_pkgs(stderr, p, "~D", 0, 1);
 		else
 			repos_remove_pkgs(r, 0);
 	} else
@@ -1045,7 +1046,7 @@ void tui(struct repos *r, const char *limit) {
 
 void list_pkgs(struct repos *r, const char *limit, int verbose) {
 	repos_read(r);
-	print_pkgs(&r->pkgs, limit, verbose, 0);
+	print_pkgs(stdout, &r->pkgs, limit, verbose, 0);
 }
 
 int main(int argc, char **argv) {
