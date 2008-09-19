@@ -16,6 +16,8 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
+#include <limits.h>
 #include <rpmcli.h>
 #include <rpmdb.h>
 #include <rpmds.h>
@@ -319,7 +321,7 @@ int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid) {
 }
 
 static int rpm_pkg_info(const struct repo *repo, const struct pkgs *p, uint pid) {
-	char cmd[RPMMAXCNAME * 2 + 100];
+	char cmd[RPMMAXCNAME * 2 + PATH_MAX * 2 + 100];
 	int i, j, len, r;
 	const char *pager;
 	const char *const strs[] = { "(rpm -qi -r ", " ",
@@ -361,12 +363,13 @@ static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, int fo
 	uint i;
 	int len, j = 0, r;
 	char *cmd;
+	const char *root = ((struct rpmrepodata *)repo->data)->root;
 
-	len = 64;
+	len = 64 + strlen(root);
 	cmd = malloc(len);
 
 	r = snprintf(cmd, len, force ? "rpm -e --nodeps -r %s " : "rpm -e -r %s ",
-			((struct rpmrepodata *)repo->data)->root);
+			root);
 	if (r < 0 || r >= len)
 		return 1;
 	j += r; len -= r;
