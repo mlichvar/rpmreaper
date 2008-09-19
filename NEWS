@@ -1,3 +1,19 @@
+0.1.5 (2008-09-19)
+- use $PAGER to display package info
+- write list of marked packages to stderr instead of stdout
+- fix flag switching on deleted part leaf when (un)deleting sibling
+- count packages that will be broken
+- add support for new rpm (Adam Tkac)
+- support specifying rpm root directory
+- add recursive (un)delete
+- support displaying indirect dependencies
+- fix moving cursor to parent
+- add new flag for packages in dependency loops
+- support limit in package listing, drop -aLb options
+- support matching flags in search and limit commands (Petr Machata)
+- hardwire BS and DEL chars to backspace key
+- merge identical req subsets
+
 0.1.4 (2008-06-25)
 - support reloading, limiting and searching in package list
 - display list position, sort and limit mode
