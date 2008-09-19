@@ -319,20 +319,36 @@ int rpmcname(char *str, size_t size, const struct pkgs *p, uint pid) {
 }
 
 static int rpm_pkg_info(const struct repo *repo, const struct pkgs *p, uint pid) {
-	char cmd[1000];
+	char cmd[RPMMAXCNAME * 2 + 100];
 	int i, j, len, r;
-	const char *const strs[] = { "(rpm -qi -r ", (const char *)1, " ", 0,
-		";echo;echo Files:;rpm -ql -r ", (const char *)1, " ", 0, ") | less" };
+	const char *pager;
+	const char *const strs[] = { "(rpm -qi -r ", " ",
+		";echo;echo Files:;rpm -ql -r ", ") | " };
+	const char const idx[] = { 0, -2, 1, -1, 2, -2, 1, -1, 3, -3 };
+
+	pager = getenv("PAGER");
+	if (pager == NULL)
+		pager = "less";
 
 	j = 0;
 	len = sizeof (cmd);
-	for (i = 0; i < sizeof (strs) / sizeof (char *); i++) {
-		if (strs[i] == 0)
-			r = rpmcname(cmd + j, len, p, pid);
-		else if (strs[i] == (const char *)1)
-			r = snprintf(cmd + j, len, ((struct rpmrepodata *)repo->data)->root);
-		else 
-			r = snprintf(cmd + j, len, strs[i]);
+	for (i = 0; i < sizeof (idx) / sizeof (char); i++) {
+		switch (idx[i]) {
+			case -1:
+				r = rpmcname(cmd + j, len, p, pid);
+				break;
+			case -2:
+				r = snprintf(cmd + j, len, ((struct rpmrepodata *)repo->data)->root);
+				break;
+			case -3:
+				r = snprintf(cmd + j, len, pager);
+				break;
+			default:
+				if (idx[i] < 0 || idx[i] >= sizeof (strs) / sizeof (char *))
+					return 1;
+				r = snprintf(cmd + j, len, strs[(int)idx[i]]);
+				break;
+		}
 		if (r < 0 || r >= len)
 			return 1;
 		j += r;

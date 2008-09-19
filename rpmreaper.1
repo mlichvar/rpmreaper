@@ -81,7 +81,8 @@ Search for next package.
 Search for next package in the opposite direction.
 .TP 8
 \fBi\fR
-Run \fBrpm -qil | less\fR on the highlighted package.
+Run \fBrpm -qil | less\fR on the highlighted package. If environment variable
+\fBPAGER\fR is set, its value is used instead of \fBless\fR.
 .TP 8
 \fBc\fR
 Run \fBrpm -e\fR on marked packages.
