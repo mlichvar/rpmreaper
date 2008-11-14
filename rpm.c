@@ -326,7 +326,7 @@ static int rpm_pkg_info(const struct repo *repo, const struct pkgs *p, uint pid)
 	const char *pager;
 	const char *const strs[] = { "(rpm -qi -r ", " ",
 		";echo;echo Files:;rpm -ql -r ", ") | " };
-	const char const idx[] = { 0, -2, 1, -1, 2, -2, 1, -1, 3, -3 };
+	const signed char const idx[] = { 0, -2, 1, -1, 2, -2, 1, -1, 3, -3 };
 
 	pager = getenv("PAGER");
 	if (pager == NULL)
