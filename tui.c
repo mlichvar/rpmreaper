@@ -454,6 +454,7 @@ void sort_rows(struct pkglist *l, const struct pkgs *p, uint first, uint size, i
 struct searchexpr {
 	uint set;
 	uint unset;
+	uint exclude;
 	regex_t reg;
 };
 
@@ -466,8 +467,9 @@ int searchexpr_comp(struct searchexpr *expr, const char *s) {
 
 	expr->set = 0;
 	expr->unset = 0;
+	expr->exclude = 0;
 
-	if (c == '~' || c == '!') {
+	if (c == '~' || (c == '!' && rest[1] == '~')) {
 		const char *it = rest;
 		int not = 0;
 		int flag = 0;
@@ -503,6 +505,12 @@ int searchexpr_comp(struct searchexpr *expr, const char *s) {
 		}
 	}
 
+	if (rest[0] == '!') {
+		expr->exclude = 1;
+		while (*++rest == ' ')
+			;
+	}
+
 	if (regcomp(&expr->reg, rest, REG_EXTENDED | REG_NOSUB))
 		return -1;
 
@@ -522,7 +530,7 @@ int searchexpr_match(const struct pkgs *p, uint pid, const struct searchexpr *ex
 		return 0;
 
 	rpmcname(cname, sizeof (cname), p, pid);
-	return !regexec(&expr->reg, cname, 0, NULL, 0);
+	return expr->exclude ^ !regexec(&expr->reg, cname, 0, NULL, 0);
 }
 
 void fill_pkglist(struct pkglist *l, const struct pkgs *p) {
