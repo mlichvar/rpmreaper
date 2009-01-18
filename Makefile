@@ -36,7 +36,6 @@ archive:
 	@mkdir .deps
 
 .deps/%.d: %.c .deps
-	@$(CC) -MM $(CPPFLAGS) $< | \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' > $@
+	@$(CC) -MM $(CPPFLAGS) -MT '$(<:%.c=%.o) $@' $< -o $@
 
 -include $(objs:%.o=.deps/%.d)
