@@ -804,11 +804,34 @@ void commit(struct repos *r, struct pkglist *l, int force) {
 	}
 }
 
-char *readline(const char *prompt) {
-	char *buf;
-	int c, size = 16, used = 0, cur = 0, x, quit = 0, o = 0;
+struct rl_history {
+	char **hist;
+	int size;
+	int cur;
+};
 
-	buf = malloc(size);
+void init_rl_history(struct rl_history *h, int size) {
+	h->hist = calloc(size, sizeof (char *));
+	h->size = size;
+	h->cur = 0;
+}
+
+void clean_rl_history(struct rl_history *h) {
+	int i;
+
+	for (i = 0; i < h->size; i++)
+		free(h->hist[i]);
+	free(h->hist);
+}
+
+char *readline(const char *prompt, struct rl_history *h) {
+	char *buf;
+	int c, i, hi, o, size = 16, used = 0, cur = 0, x, quit = 0;
+
+	if (h->hist[h->cur] != NULL && strlen(h->hist[h->cur]) > 0)
+		h->cur = (h->cur + 1) % h->size;
+	hi = h->cur;
+	buf = h->hist[h->cur] = realloc(h->hist[h->cur], size);
 	buf[used] = '\0';
 
 	attron(COLOR_PAIR(2));
@@ -858,6 +881,29 @@ char *readline(const char *prompt) {
 				if (cur < used)
 					cur++;
 				break;
+			case KEY_UP:
+			case KEY_DOWN:
+				i = h->cur;
+hist_skip:
+				if (c == KEY_UP) {
+					i = (i + h->size - 1) % h->size;
+					if (i == hi || h->hist[i] == NULL)
+						break;
+				} else {
+					i = (i + 1) % h->size;
+					if (h->cur == hi || h->hist[i] == NULL)
+						break;
+				}
+
+				/* skip empty entries */
+				if (i != hi && !strlen(h->hist[i]))
+					goto hist_skip;
+
+				h->cur = i;
+				buf = h->hist[h->cur];
+				cur = used = strlen(buf);
+				size = used + 1;
+				break;
 			case KEY_BACKSPACE:
 			case 0x8:
 			case 0x7f:
@@ -874,25 +920,34 @@ char *readline(const char *prompt) {
 				if (c < 0x20 || c > 0x7f)
 					break;
 				while (used + 2 > size)
-					buf = realloc(buf, (size *= 2));
+					buf = h->hist[h->cur] = realloc(buf, size *= 2);
 				memmove(buf + cur + 1, buf + cur, used - cur + 1);
 				buf[cur++] = c;
 				used++;
 		}
 	}
 
+	if (hi != h->cur) {
+		char *t;
+
+		t = h->hist[h->cur];
+		h->hist[h->cur] = h->hist[hi];
+		h->hist[hi] = t;
+		h->cur = hi;
+	}
+
 	curs_set(0);
 
-	if (quit > 1) {
-		free(buf);
+	if (quit > 1)
 		return NULL;
-	}
-	return buf;
+
+	return strdup(buf);
 }
 
 void tui(struct repos *r, const char *limit) {
 	struct pkglist l;
 	struct pkgs *p = &r->pkgs;
+	struct rl_history hist;
 	int c, quit, searchdir = 0;
 	char *s, *searchre = NULL, remove;
 
@@ -921,6 +976,8 @@ void tui(struct repos *r, const char *limit) {
 
 	init_pkglist(&l, p, SORT_BY_FLAGS, limit != NULL ? strdup(limit) : NULL);
 
+	init_rl_history(&hist, 50);
+
 	for (quit = 0; !quit; ) {
 		move_cursor(&l, 0);
 
@@ -943,7 +1000,7 @@ void tui(struct repos *r, const char *limit) {
 				commit(r, &l, c == 'c' ? 0 : 1);
 				break;
 			case 'l':
-				if ((s = readline("Limit: ")) != NULL)
+				if ((s = readline("Limit: ", &hist)) != NULL)
 					limit_pkglist(&l, p, s);
 				break;
 			case 'o':
@@ -1056,7 +1113,7 @@ void tui(struct repos *r, const char *limit) {
 				break;
 			case '/':
 			case '?':
-				if ((s = readline("Search: ")) == NULL)
+				if ((s = readline("Search: ", &hist)) == NULL)
 					break;
 				free(searchre);
 				searchre = s;
@@ -1070,6 +1127,7 @@ void tui(struct repos *r, const char *limit) {
 		}
 	}	
 
+	clean_rl_history(&hist);
 	clean_pkglist(&l);
 	free(searchre);
 }
