@@ -578,12 +578,34 @@ void clean_pkglist(struct pkglist *l) {
 	memset(l, 0, sizeof (struct pkglist));
 }
 
+char ask_question(const char *prompt, const char *answers, char def) {
+	display_question(prompt);
+
+	while (1) {
+		int c = getch();
+
+		switch (c) {
+			case KEY_ENTER:
+			case '\r':
+			case '\n':
+				return def;
+			case 'G' - 0x40:
+			case 27:
+				return 0;
+			default:
+				if (strchr(answers, c) != NULL)
+					return c;
+		}
+	}
+
+	return 0;
+}
+
 void sort_pkglist(struct pkglist *l, const struct pkgs *p) {
 	uint cpid;
-	int c;
+	char c;
 
-	display_question("Sort by (f)lags/(n)ame/(s)ize?:");
-	c = getch();
+	c = ask_question("Sort by (f)lags/(n)ame/(s)ize?:", "fns", 0);
 	switch (c) {
 		case 'f':
 			l->sortby = SORT_BY_FLAGS;
@@ -683,13 +705,10 @@ void read_list(struct repos *r) {
 	display_info_message(NULL);
 }
 
-int ask_remove_pkgs(const struct pkgs *p) {
+char ask_remove_pkgs(const struct pkgs *p) {
 	if (!p->delete_pkgs)
-		return 0;
-	display_question("Remove marked packages? (yes/[no]):");
-	if (getch() != 'y')
-		return 0;
-	return 1;
+		return 'n';
+	return ask_question("Remove marked packages? (yes/[no]):", "yn", 'n');
 }
 
 struct selection {
@@ -772,7 +791,7 @@ void reread_list(struct repos *r, struct pkglist *l) {
 void commit(struct repos *r, struct pkglist *l, int force) {
 	struct pkgs *p = &r->pkgs;
 
-	if (ask_remove_pkgs(p)) {
+	if (ask_remove_pkgs(p) == 'y') {
 		endwin();
 		if (repos_remove_pkgs(r, force)) {
 			char buf[100], *d;
@@ -811,6 +830,7 @@ char *readline(const char *prompt) {
 				quit = 1;
 				break;
 			case 'G' - 0x40:
+			case 27:
 				quit = 2;
 				break;
 			case KEY_HOME:
@@ -874,7 +894,7 @@ void tui(struct repos *r, const char *limit) {
 	struct pkglist l;
 	struct pkgs *p = &r->pkgs;
 	int c, quit, searchdir = 0;
-	char *s, *searchre = NULL;
+	char *s, *searchre = NULL, remove;
 
 	initscr();
 	if (has_colors()) {
@@ -930,10 +950,19 @@ void tui(struct repos *r, const char *limit) {
 				sort_pkglist(&l, p);
 				break;
 			case 'q':
+				remove = ask_remove_pkgs(p);
+				if (!remove)
+					break;
 				quit = 1;
+				endwin();
+				if (remove == 'y')
+					repos_remove_pkgs(r, 0);
+				else
+					print_pkgs(stderr, p, "~D", 0, 1);
 				break;
 			case 'x':
 				quit = 2;
+				endwin();
 				break;
 			/* ^R */
 			case 'R' - 0x40:
@@ -1040,15 +1069,7 @@ void tui(struct repos *r, const char *limit) {
 				break;
 		}
 	}	
-	if (quit < 2) {
-		int remove = ask_remove_pkgs(p);
-		endwin();
-		if (!remove)
-			print_pkgs(stderr, p, "~D", 0, 1);
-		else
-			repos_remove_pkgs(r, 0);
-	} else
-		endwin();
+
 	clean_pkglist(&l);
 	free(searchre);
 }
