@@ -944,6 +944,7 @@ void tui(struct repos *r, const char *limit) {
 				clear();
 				break;
 			case KEY_F(1):
+			case KEY_F(2):
 				endwin();
 				if (system("man rpmreaper"))
 					;
