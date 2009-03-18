@@ -161,12 +161,29 @@ void display_pkg_info(const struct repos *r, uint pid) {
 	repos_pkg_info(r, pid);
 }
 
+#define LEVEL_START 13
+#define LEVEL_WIDTH 4
+
+int get_level_shift(const struct pkglist *l) {
+	if (l->cursor < get_used_pkgs(l)) {
+		int s, level = get_row(l, l->cursor)->level;
+		s = COLS - 25 - LEVEL_START;
+		if (s < 0)
+			return level;
+		s = level - s / LEVEL_WIDTH;
+		return s > 0 ? s : 0;
+	}
+	return 0;
+}
+
 void display_pkgs(const struct pkglist *l, const struct pkgs *p) {
-	int i, used = get_used_pkgs(l);
+	int i, col, n, used = get_used_pkgs(l), level, ls = get_level_shift(l);
 	const struct pkg *pkg;
+	char nvra[RPMMAXCNAME];
 
 	for (i = l->first; i - l->first < l->lines && i < used; i++) {
 		pkg = pkgs_get(p, get_row(l, i)->pid);
+		level = get_row(l, i)->level;
 
 		move(i - l->first + 1, 0);
 		select_color_by_status(pkg);
@@ -178,12 +195,29 @@ void display_pkgs(const struct pkglist *l, const struct pkgs *p) {
 		addch(' ');
 		display_size(pkg->size, 1);
 
-		move(i - l->first + 1, 13 + 4 * get_row(l, i)->level);
-		printw("%-25s %s-%s.%s",
+		n = snprintf(nvra, sizeof (nvra), "%-25s %s-%s.%s",
 				strings_get(&p->strings, pkg->name),
 				strings_get(&p->strings, pkg->ver),
 				strings_get(&p->strings, pkg->rel),
 				strings_get(&p->strings, pkg->arch));
+		if (n >= sizeof (nvra))
+			n = sizeof (nvra) - 1;
+
+		col = LEVEL_START + LEVEL_WIDTH * (level - ls);
+		if (col < COLS) {
+			if (COLS - col < n)
+				nvra[COLS - col] = '\0';
+			if (level >= ls)
+				mvaddstr(i - l->first + 1, col, nvra);
+			else if (LEVEL_WIDTH * (ls - level) < n)
+				mvaddstr(i - l->first + 1, LEVEL_START, 
+						nvra + LEVEL_WIDTH * (ls - level));
+			if (level < ls || (level == ls && ls > 0)) {
+				if (i != l->cursor)
+					attron(COLOR_PAIR(4));
+				mvaddch(i - l->first + 1, LEVEL_START - 1, '>');
+			}
+		}
 
 		if (i == l->cursor)
 			attroff(A_REVERSE | A_BOLD);
@@ -191,10 +225,11 @@ void display_pkgs(const struct pkglist *l, const struct pkgs *p) {
 }
 
 void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
-	int i, dir, first = l->first, lines = l->lines, used = get_used_pkgs(l);
+	int i, dir, first = l->first, lines = l->lines, used = get_used_pkgs(l),
+	    ls = get_level_shift(l);
 
 	for (i = first, dir = -1; dir <= 1; i += dir, dir += 2) {
-		while (i > 0 && i + 1 < used &&	get_row(l, i)->level != 0)
+		while (i > 0 && i + 1 < used &&	get_row(l, i)->level > ls)
 		       	i += dir;
 
 		for (; i < used && ((dir > 0 && i > first) || (dir < 0 && i - first < lines));
@@ -205,6 +240,10 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 				continue;
 
 			level1 = get_row(l, i)->level;
+
+			if (level1 < ls || LEVEL_START + LEVEL_WIDTH * (level1 - ls + 1) > COLS)
+				continue;
+
 			for (j = i - dir, edge = 0; !edge &&
 					((dir > 0 && j >= first) ||
 					 (dir < 0 && j - first < lines)) &&
@@ -221,7 +260,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 				if ((dir > 0 && j >= first + lines) || (dir < 0 && j < first))
 					continue;
 
-				move(j - first + 1, 13 + 4 * level1);
+				move(j - first + 1, LEVEL_START + LEVEL_WIDTH * (level1 - ls));
 
 				if (j == l->cursor) {
 					attron(A_REVERSE | A_BOLD);
