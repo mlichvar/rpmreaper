@@ -592,6 +592,9 @@ char ask_question(const char *prompt, const char *answers, char def) {
 			case 'G' - 0x40:
 			case 27:
 				return 0;
+			case KEY_RESIZE:
+				display_question(prompt);
+				break;
 			default:
 				if (strchr(answers, c) != NULL)
 					return c;
@@ -916,6 +919,9 @@ hist_skip:
 				memmove(buf + cur, buf + cur + 1, used - cur);
 				used--;
 				break;
+			case KEY_RESIZE:
+				mvprintw(LINES - 1, 0, prompt);
+				break;
 			default:
 				if (c < 0x20 || c > 0x7f)
 					break;
@@ -982,6 +988,7 @@ void tui(struct repos *r, const char *limit) {
 		move_cursor(&l, 0);
 
 		erase();
+		stretch_pkglist(&l);
 		display_pkgs(&l, p);
 		draw_deplines(&l, p);
 		display_help();
@@ -1034,9 +1041,6 @@ void tui(struct repos *r, const char *limit) {
 				endwin();
 				if (system("man rpmreaper"))
 					;
-				break;
-			case KEY_RESIZE:
-				stretch_pkglist(&l);
 				break;
 		}
 
