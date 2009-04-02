@@ -1,5 +1,5 @@
 NAME = rpmreaper
-VERSION = 0.1.5
+VERSION = 0.1.6
 
 CFLAGS = -O -g -Wall
 LDFLAGS = -lrpmbuild -lncurses

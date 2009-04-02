@@ -1,3 +1,11 @@
+0.1.6 (2009-04-02)
+- fix package info command on archs where char is unsigned (Adam Tkac)
+- support inverted regexps in search expressions (Petr Machata)
+- bind help also to F2
+- add search and limit history
+- handle ^G, ESC and screen resize in prompts
+- add horizontal scrolling
+
 0.1.5 (2008-09-19)
 - use $PAGER to display package info
 - write list of marked packages to stderr instead of stdout
