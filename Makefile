@@ -2,7 +2,7 @@ NAME = rpmreaper
 VERSION = 0.1.6
 
 CFLAGS = -O -g -Wall
-LDFLAGS = -lrpmbuild -lncurses
+LDFLAGS = -lrpm -lncurses
 
 prefix = /usr/local
 bindir = $(prefix)/bin
