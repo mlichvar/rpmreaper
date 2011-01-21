@@ -97,7 +97,7 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 	rpmtsSetRootDir(rd->ts, ((struct rpmrepodata *)repo->data)->root);
 	rpmtsSetVSFlags(rd->ts, _RPMVSF_NOSIGNATURES | _RPMVSF_NODIGESTS);
 
-	iter = rpmtsInitIterator(rd->ts, RPMTAG_NAME, NULL, 0);
+	iter = rpmtsInitIterator(rd->ts, RPMDBI_PACKAGES, NULL, 0);
 	for (pid = firstpid; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
 #ifdef _RPM_4_4_COMPAT
 		int i, ds1, ds2, ds3;
