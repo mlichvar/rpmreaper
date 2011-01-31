@@ -192,7 +192,7 @@ static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid
 	dirs = rpmtdNew();
 	dirindexes = rpmtdNew();
 #endif
-	iter = rpmtsInitIterator(ts, RPMTAG_NAME, NULL, 0);
+	iter = rpmtsInitIterator(ts, RPMDBI_PACKAGES, NULL, 0);
 
 	for (pid = firstpid; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
 #ifdef _RPM_4_4_COMPAT
