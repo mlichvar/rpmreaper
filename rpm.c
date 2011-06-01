@@ -86,13 +86,11 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 	rpmdbMatchIterator iter;
 	Header header;
 	uint pid;
-	char *argv[] = {""};
 #ifndef _RPM_4_4_COMPAT
 	rpmtd sizetd;
 
 	sizetd = rpmtdNew();
 #endif
-	rd->context = rpmcliInit(1, argv, NULL);
 	rd->ts = rpmtsCreate();
 	rpmtsSetRootDir(rd->ts, ((struct rpmrepodata *)repo->data)->root);
 	rpmtsSetVSFlags(rd->ts, _RPMVSF_NOSIGNATURES | _RPMVSF_NODIGESTS);
@@ -299,7 +297,6 @@ static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid
 	iter = rpmdbFreeIterator(iter);
 
 	rd->ts = rpmtsFree(ts);
-	rd->context = rpmcliFini(rd->context);
 
 	return 0;
 }
@@ -406,11 +403,14 @@ static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, int fo
 }
 
 static void rpm_repo_clean(struct repo *r) {
+	rpmcliFini(((struct rpmrepodata *)r->data)->context);
 	free(r->data);
 	r->data = NULL;
 }
 
 void rpm_fillrepo(struct repo *r, const char *root) {
+	char *argv[] = {""};
+
 	r->repo_read = rpm_read;
 	r->repo_read_provs = rpm_read_provs;
 	r->repo_pkg_info = rpm_pkg_info;
@@ -419,4 +419,5 @@ void rpm_fillrepo(struct repo *r, const char *root) {
 
 	r->data = malloc(sizeof (struct rpmrepodata));
 	((struct rpmrepodata *)r->data)->root = root;
+	((struct rpmrepodata *)r->data)->context = rpmcliInit(1, argv, NULL);
 }
