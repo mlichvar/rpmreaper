@@ -836,11 +836,11 @@ void commit(struct repos *r, struct pkglist *l, int force) {
 	if (ask_remove_pkgs(p) == 'y') {
 		endwin();
 		if (repos_remove_pkgs(r, force)) {
-			char buf[100], *d;
+			char buf[100];
 
 			printf("\nPress Enter to continue.");
 			fflush(stdout);
-			d = fgets(buf, sizeof (buf), stdin);
+			(void)fgets(buf, sizeof (buf), stdin);
 		}
 		reread_list(r, l);
 	}
