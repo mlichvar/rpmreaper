@@ -337,15 +337,15 @@ static int rpm_pkg_info(const struct repo *repo, const struct pkgs *p, uint pid)
 				r = rpmcname(cmd + j, len, p, pid);
 				break;
 			case -2:
-				r = snprintf(cmd + j, len, ((struct rpmrepodata *)repo->data)->root);
+				r = snprintf(cmd + j, len, "%s", ((struct rpmrepodata *)repo->data)->root);
 				break;
 			case -3:
-				r = snprintf(cmd + j, len, pager);
+				r = snprintf(cmd + j, len, "%s", pager);
 				break;
 			default:
 				if (idx[i] < 0 || idx[i] >= sizeof (strs) / sizeof (char *))
 					return 1;
-				r = snprintf(cmd + j, len, strs[(int)idx[i]]);
+				r = snprintf(cmd + j, len, "%s", strs[(int)idx[i]]);
 				break;
 		}
 		if (r < 0 || r >= len)
