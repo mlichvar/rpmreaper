@@ -25,56 +25,6 @@
 
 #include "rpm.h"
 
-#ifdef _RPM_4_4_COMPAT
-static int get_string(Header h, rpmTag tag, char **s) {
-	int_32 n, t;
-	int r;
-
-	r = headerGetEntry(h, tag, &t, (void *)s, &n);
-	if (r && t == RPM_STRING_TYPE)
-		return n;
-	*s = NULL;
-	return 0;
-}
-
-static void free_string(Header h, char **s) {
-	headerFreeTag(h, *s, RPM_STRING_TYPE);
-	*s = NULL;
-}
-
-static int get_strings(Header h, rpmTag tag, char ***s) {
-	int_32 n, t;
-	int r;
-
-	r = headerGetEntry(h, tag, &t, (void *)s, &n);
-	if (r && t == RPM_STRING_ARRAY_TYPE)
-		return n;
-	*s = NULL;
-	return 0;
-}
-
-static void free_strings(Header h, char ***s) {
-	headerFreeTag(h, *s, RPM_STRING_ARRAY_TYPE);
-	*s = NULL;
-}
-
-static int get_int(Header h, rpmTag tag, int_32 **i) {
-	int_32 n, t;
-	int r;
-
-	r = headerGetEntry(h, tag, &t, (void *)i, &n);
-	if (r && t == RPM_INT32_TYPE)
-		return n;
-	*i = NULL;
-	return 0;
-}
-
-static void free_int(Header h, int_32 **i) {
-	headerFreeTag(h, *i, RPM_INT32_TYPE);
-	*i = NULL;
-}
-#endif
-
 struct rpmrepodata {
 	const char *root;
 	poptContext context;
@@ -86,41 +36,22 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 	rpmdbMatchIterator iter;
 	Header header;
 	uint pid;
-#ifndef _RPM_4_4_COMPAT
 	rpmtd td;
 
 	td = rpmtdNew();
-#endif
 	rd->ts = rpmtsCreate();
 	rpmtsSetRootDir(rd->ts, ((struct rpmrepodata *)repo->data)->root);
 	rpmtsSetVSFlags(rd->ts, _RPMVSF_NOSIGNATURES | _RPMVSF_NODIGESTS);
 
 	iter = rpmtsInitIterator(rd->ts, RPMDBI_PACKAGES, NULL, 0);
 	for (pid = firstpid; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
-#ifdef _RPM_4_4_COMPAT
-		int i, ds1, ds2, ds3;
-		int_32 *epoch, *size, *requireflags, zero = 0;
-		char **requires, **requireversions;
-#else
 		int r;
 		uint32_t *epoch, *size, zero = 0;
 		rpmds requires;
 		const char *req, *reqver;
 		rpmsenseFlags reqflags;
-		const
-#endif
-		char *release, *name, *version, *arch;
+		const char *release, *name, *version, *arch;
 
-#ifdef _RPM_4_4_COMPAT
-		get_string(header, RPMTAG_NAME, &name);
-		get_string(header, RPMTAG_VERSION, &version);
-		get_string(header, RPMTAG_RELEASE, &release);
-		get_string(header, RPMTAG_ARCH, &arch);
-		if (!get_int(header, RPMTAG_SIZE, &size))
-			size = &zero;
-		if (!get_int(header, RPMTAG_EPOCH, &epoch))
-			epoch = &zero;
-#else
 		name = headerGetString(header, RPMTAG_NAME);
 		version = headerGetString(header, RPMTAG_VERSION);
 		release = headerGetString(header, RPMTAG_RELEASE);
@@ -129,32 +60,8 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 		epoch = r == 1 ? rpmtdGetUint32(td) : &zero;
 		r = headerGet(header, RPMTAG_SIZE, td, HEADERGET_DEFAULT);
 		size = r == 1 ? rpmtdGetUint32(td) : &zero;
-#endif
 		pkgs_set(p, pid, repo->repo, name, *epoch, version, release, arch,
 				0, (*size + 1023) / 1024);
-#ifdef _RPM_4_4_COMPAT
-		free_string(header, &name);
-		free_string(header, &version);
-		free_string(header, &release);
-		free_string(header, &arch);
-		if (size != &zero)
-			free_int(header, &size);
-		if (size != &zero)
-			free_int(header, &size);
-
-		ds1 = get_strings(header, RPMTAG_REQUIRENAME, &requires);
-		ds2 = get_int(header, RPMTAG_REQUIREFLAGS, &requireflags);
-		ds3 = get_strings(header, RPMTAG_REQUIREVERSION, &requireversions);
-		for (i = 0; i < ds1; i++) {
-			if (i < ds2 && !(requireflags[i] & (RPMSENSE_RPMLIB & ~RPMSENSE_PREREQ)))
-				pkgs_add_req(p, pid, i < ds1 ? requires[i] : 0, i < ds2 ? requireflags[i] & (RPMSENSE_LESS | RPMSENSE_GREATER | RPMSENSE_EQUAL) : 0, i < ds3 ? requireversions[i] : 0);
-		}
-
-		free_strings(header, &requires);
-		free_int(header, &requireflags);
-		free_strings(header, &requireversions);
-
-#else
 		requires = rpmdsNew(header, RPMTAG_REQUIRENAME, 0);
 		while (rpmdsNext(requires) != -1) {
 			req = rpmdsN(requires);
@@ -167,11 +74,8 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 			}
 		}
 		rpmdsFree(requires);
-#endif
 	}
-#ifndef _RPM_4_4_COMPAT
 	rpmtdFree(td);
-#endif
 	iter = rpmdbFreeIterator(iter);
 
 	return 0;
@@ -185,59 +89,14 @@ static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid
 	Header header;
 	char buf[1000];
 	uint pid;
-#ifndef _RPM_4_4_COMPAT
 	rpmtd bases, dirs, dirindexes;
 
 	bases = rpmtdNew();
 	dirs = rpmtdNew();
 	dirindexes = rpmtdNew();
-#endif
 	iter = rpmtsInitIterator(ts, RPMDBI_PACKAGES, NULL, 0);
 
 	for (pid = firstpid; (header = rpmdbNextIterator(iter)) != NULL; pid++) {
-#ifdef _RPM_4_4_COMPAT
-		int i, ds1, ds2 = 0, ds3 = 0, *dirindexes;
-		char **dirs = NULL, **bases, **provides, **provideversions;
-		int_32 *provideflags;
-
-		ds1 = get_strings(header, RPMTAG_PROVIDENAME, &provides);
-		ds2 = get_int(header, RPMTAG_PROVIDEFLAGS, &provideflags);
-		ds3 = get_strings(header, RPMTAG_PROVIDEVERSION, &provideversions);
-
-		for (i = 0; i < ds1; i++) {
-			pkgs_add_prov(p, pid, i < ds1 ? provides[i] : 0, i < ds2 ? provideflags[i] & (RPMSENSE_LESS | RPMSENSE_GREATER | RPMSENSE_EQUAL) : 0, i < ds3 ? provideversions[i] : 0);
-		}
-
-		free_strings(header, &provides);
-		free_int(header, &provideflags);
-		free_strings(header, &provideversions);
-
-		ds1 = get_strings(header, RPMTAG_BASENAMES, &bases);
-		for (i = 0; i < ds1; i++) {
-			if (strings_get_id(basenames, bases[i]) == -1)
-				continue;
-
-			if (dirs == NULL) {
-				ds2 = get_strings(header, RPMTAG_DIRNAMES, &dirs);
-				ds3 = get_int(header, RPMTAG_DIRINDEXES, &dirindexes);
-				assert(dirs != NULL);
-				assert(dirindexes != NULL);
-			}
-			assert(i < ds3 && dirindexes[i] < ds2);
-			snprintf(buf, sizeof (buf), "%s%s", dirs[dirindexes[i]], bases[i]);
-
-			if (strings_get_id(files, buf) == -1)
-				continue;
-
-			pkgs_add_fileprov(p, pid, buf);
-		}
-
-		free_strings(header, &bases);
-		if (dirs != NULL) {
-			free_strings(header, &dirs);
-			free_int(header, &dirindexes);
-		}
-#else
 		int r, dirsread = 0;
 		rpmds provides;
 		const char *prov, *provver;
@@ -287,14 +146,11 @@ static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid
 			rpmtdFreeData(dirs);
 			rpmtdFreeData(dirindexes);
 		}
-#endif
 	}
 
-#ifndef _RPM_4_4_COMPAT
 	rpmtdFree(bases);
 	rpmtdFree(dirs);
 	rpmtdFree(dirindexes);
-#endif
 
 	iter = rpmdbFreeIterator(iter);
 
