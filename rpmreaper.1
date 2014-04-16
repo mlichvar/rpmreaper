@@ -85,10 +85,11 @@ Run \fBrpm -qil | less\fR on the highlighted package. If environment variable
 \fBPAGER\fR is set, its value is used instead of \fBless\fR.
 .TP 8
 \fBc\fR
-Run \fBrpm -e\fR on marked packages.
+Run \fBrpm -e\fR on marked packages to remove them from the system.
 .TP 8
 \fBC\fR
-Run \fBrpm -e --nodeps\fR on marked packages.
+Similar to \fBc\fR, but extra options can be added to the \fBrpm -e\fR command,
+e.g. \fB--nodeps\fR to ignore dependencies when removing the packages.
 .TP 8
 \fBq\fR
 Ask to remove marked packages and quit. If the answer is no, the list of

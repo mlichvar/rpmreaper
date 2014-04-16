@@ -831,19 +831,15 @@ void reread_list(struct repos *r, struct pkglist *l) {
 }
 
 void commit(struct repos *r, struct pkglist *l, const char *options) {
-	struct pkgs *p = &r->pkgs;
+	endwin();
+	if (repos_remove_pkgs(r, options)) {
+		char buf[100];
 
-	if (ask_remove_pkgs(p) == 'y') {
-		endwin();
-		if (repos_remove_pkgs(r, options)) {
-			char buf[100];
-
-			printf("\nPress Enter to continue.");
-			fflush(stdout);
-			(void)fgets(buf, sizeof (buf), stdin);
-		}
-		reread_list(r, l);
+		printf("\nPress Enter to continue.");
+		fflush(stdout);
+		(void)fgets(buf, sizeof (buf), stdin);
 	}
+	reread_list(r, l);
 }
 
 struct rl_history {
@@ -992,7 +988,7 @@ hist_skip:
 void tui(struct repos *r, const char *limit) {
 	struct pkglist l;
 	struct pkgs *p = &r->pkgs;
-	struct rl_history hist;
+	struct rl_history limit_hist, options_hist;
 	int c, quit, searchdir = 0;
 	char *s, *searchre = NULL, remove;
 
@@ -1021,7 +1017,8 @@ void tui(struct repos *r, const char *limit) {
 
 	init_pkglist(&l, p, SORT_BY_FLAGS, limit != NULL ? strdup(limit) : NULL);
 
-	init_rl_history(&hist, 50);
+	init_rl_history(&limit_hist, 50);
+	init_rl_history(&options_hist, 10);
 
 	for (quit = 0; !quit; ) {
 		move_cursor(&l, 0);
@@ -1043,10 +1040,14 @@ void tui(struct repos *r, const char *limit) {
 		switch (c) {
 			case 'c':
 			case 'C':
-				commit(r, &l, c == 'c' ? "" : "--nodeps");
+				if (ask_remove_pkgs(p) != 'y')
+					break;
+				s = c == 'c' ? "" : readline("Command: rpm -e ", &options_hist);
+				if (s)
+					commit(r, &l, s);
 				break;
 			case 'l':
-				if ((s = readline("Limit: ", &hist)) != NULL)
+				if ((s = readline("Limit: ", &limit_hist)) != NULL)
 					limit_pkglist(&l, p, s);
 				break;
 			case 'o':
@@ -1156,7 +1157,7 @@ void tui(struct repos *r, const char *limit) {
 				break;
 			case '/':
 			case '?':
-				if ((s = readline("Search: ", &hist)) == NULL)
+				if ((s = readline("Search: ", &limit_hist)) == NULL)
 					break;
 				free(searchre);
 				searchre = s;
@@ -1170,7 +1171,8 @@ void tui(struct repos *r, const char *limit) {
 		}
 	}	
 
-	clean_rl_history(&hist);
+	clean_rl_history(&limit_hist);
+	clean_rl_history(&options_hist);
 	clean_pkglist(&l);
 	free(searchre);
 }
