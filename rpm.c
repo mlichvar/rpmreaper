@@ -87,9 +87,9 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 	Header header;
 	uint pid;
 #ifndef _RPM_4_4_COMPAT
-	rpmtd sizetd;
+	rpmtd td;
 
-	sizetd = rpmtdNew();
+	td = rpmtdNew();
 #endif
 	rd->ts = rpmtsCreate();
 	rpmtsSetRootDir(rd->ts, ((struct rpmrepodata *)repo->data)->root);
@@ -121,12 +121,14 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 		if (!get_int(header, RPMTAG_EPOCH, &epoch))
 			epoch = &zero;
 #else
-		headerNEVRA(header, &name, &epoch, &version, &release, &arch);
-		if (epoch == NULL)
-			epoch = &zero;
-
-		r = headerGet(header, RPMTAG_SIZE, sizetd, HEADERGET_DEFAULT);
-		size = (r == 1) ? rpmtdGetUint32(sizetd) : &zero;
+		name = headerGetString(header, RPMTAG_NAME);
+		version = headerGetString(header, RPMTAG_VERSION);
+		release = headerGetString(header, RPMTAG_RELEASE);
+		arch = headerGetString(header, RPMTAG_ARCH);
+		r = headerGet(header, RPMTAG_EPOCH, td, HEADERGET_DEFAULT);
+		epoch = r == 1 ? rpmtdGetUint32(td) : &zero;
+		r = headerGet(header, RPMTAG_SIZE, td, HEADERGET_DEFAULT);
+		size = r == 1 ? rpmtdGetUint32(td) : &zero;
 #endif
 		pkgs_set(p, pid, repo->repo, name, *epoch, version, release, arch,
 				0, (*size + 1023) / 1024);
@@ -168,7 +170,7 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 #endif
 	}
 #ifndef _RPM_4_4_COMPAT
-	rpmtdFree(sizetd);
+	rpmtdFree(td);
 #endif
 	iter = rpmdbFreeIterator(iter);
 
