@@ -356,7 +356,7 @@ static int rpm_pkg_info(const struct repo *repo, const struct pkgs *p, uint pid)
 	return system(cmd);
 }
 
-static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, int force) {
+static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, const char *options) {
 	uint i;
 	int len, j = 0, r;
 	char *cmd;
@@ -365,8 +365,7 @@ static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, int fo
 	len = 64 + strlen(root);
 	cmd = malloc(len);
 
-	r = snprintf(cmd, len, force ? "rpm -e --nodeps -r %s " : "rpm -e -r %s ",
-			root);
+	r = snprintf(cmd, len, "rpm -e %s -r %s ", options, root);
 	if (r < 0 || r >= len)
 		return 1;
 	j += r; len -= r;

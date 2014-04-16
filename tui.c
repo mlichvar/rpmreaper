@@ -830,12 +830,12 @@ void reread_list(struct repos *r, struct pkglist *l) {
 	load_cursor(cursor, l, p);
 }
 
-void commit(struct repos *r, struct pkglist *l, int force) {
+void commit(struct repos *r, struct pkglist *l, const char *options) {
 	struct pkgs *p = &r->pkgs;
 
 	if (ask_remove_pkgs(p) == 'y') {
 		endwin();
-		if (repos_remove_pkgs(r, force)) {
+		if (repos_remove_pkgs(r, options)) {
 			char buf[100];
 
 			printf("\nPress Enter to continue.");
@@ -1043,7 +1043,7 @@ void tui(struct repos *r, const char *limit) {
 		switch (c) {
 			case 'c':
 			case 'C':
-				commit(r, &l, c == 'c' ? 0 : 1);
+				commit(r, &l, c == 'c' ? "" : "--nodeps");
 				break;
 			case 'l':
 				if ((s = readline("Limit: ", &hist)) != NULL)
@@ -1059,7 +1059,7 @@ void tui(struct repos *r, const char *limit) {
 				quit = 1;
 				endwin();
 				if (remove == 'y')
-					repos_remove_pkgs(r, 0);
+					repos_remove_pkgs(r, "");
 				else
 					print_pkgs(stderr, p, "~D", 0, 1);
 				break;

@@ -27,7 +27,7 @@ struct repo {
 	int (*repo_read_provs)(const struct repo *repo, struct pkgs *p, uint firstpid,
 			const struct strings *files, const struct strings *basenames);
 	int (*repo_pkg_info)(const struct repo *repo, const struct pkgs *p, uint pid);
-	int (*repo_remove_pkgs)(const struct repo *repo, const struct pkgs *p, int force);
+	int (*repo_remove_pkgs)(const struct repo *repo, const struct pkgs *p, const char *options);
 	void (*repo_clean)(struct repo *repo);
 };
 
@@ -44,6 +44,6 @@ struct repo *repos_getw(struct repos *repos, uint repo);
 int repos_read(struct repos *repos);
 
 int repos_pkg_info(const struct repos *repos, uint pid);
-int repos_remove_pkgs(struct repos *repos, int force); 
+int repos_remove_pkgs(struct repos *repos, const char *options); 
 
 #endif

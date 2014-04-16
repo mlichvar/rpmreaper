@@ -129,7 +129,7 @@ int repos_pkg_info(const struct repos *repos, uint pid) {
 	return r->repo_pkg_info(r, &repos->pkgs, pid);
 }
 
-int repos_remove_pkgs(struct repos *repos, int force) {
+int repos_remove_pkgs(struct repos *repos, const char *options) {
 	const struct repo *r;
 	uint i;
 
@@ -137,7 +137,7 @@ int repos_remove_pkgs(struct repos *repos, int force) {
 		r = repos_get(repos, i);
 		if (r->repo_remove_pkgs == NULL)
 			continue;
-		if (r->repo_remove_pkgs(r, &repos->pkgs, force))
+		if (r->repo_remove_pkgs(r, &repos->pkgs, options))
 			return 1;
 	}
 	return 0;
