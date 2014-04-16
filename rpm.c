@@ -18,10 +18,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <rpmcli.h>
-#include <rpmdb.h>
-#include <rpmds.h>
-#include <rpmts.h>
+#include <rpm/rpmcli.h>
+#include <rpm/rpmdb.h>
+#include <rpm/rpmds.h>
+#include <rpm/rpmts.h>
 
 #include "rpm.h"
 

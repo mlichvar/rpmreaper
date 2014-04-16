@@ -1,8 +1,9 @@
 NAME = rpmreaper
 VERSION = 0.1.6
 
-CFLAGS = -O -g -Wall
-LDFLAGS = -lrpm -lncurses
+EXTRA_CFLAGS = -O -g -Wall
+CFLAGS = $(shell pkg-config --cflags rpm ncurses) $(EXTRA_CFLAGS)
+LDFLAGS = $(shell pkg-config --libs rpm ncurses) $(EXTRA_LDFLAGS)
 
 prefix = /usr/local
 bindir = $(prefix)/bin
@@ -18,8 +19,6 @@ clean:
 
 $(NAME): $(objs)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-rpm.o dep.o: override CPPFLAGS += -I/usr/include/rpm
 
 install: $(NAME)
 	mkdir -p $(bindir) $(man1dir)

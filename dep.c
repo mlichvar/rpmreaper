@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <rpmlib.h>
+#include <rpm/rpmlib.h>
 
 #include "dep.h"
 
