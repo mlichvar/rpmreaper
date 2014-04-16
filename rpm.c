@@ -25,11 +25,27 @@
 
 #include "rpm.h"
 
+#define FLAG_BIN_IN_USR 1
+#define FLAG_SBIN_IN_USR 2
+#define FLAG_LIB_IN_USR 4
+#define FLAG_LIB64_IN_USR 8
+
 struct rpmrepodata {
 	const char *root;
 	poptContext context;
 	rpmts ts;
+	int flags;
 };
+
+static const char *get_cpath(const struct rpmrepodata *data, const char *path) {
+	if ((data->flags & FLAG_BIN_IN_USR && !strncmp(path, "/usr/bin/", 9)) ||
+		(data->flags & FLAG_SBIN_IN_USR && !strncmp(path, "/usr/sbin/", 10)) ||
+		(data->flags & FLAG_LIB_IN_USR && !strncmp(path, "/usr/lib/", 9)) ||
+		(data->flags & FLAG_LIB64_IN_USR && !strncmp(path, "/usr/lib64/", 11)))
+		return path + 4;
+
+	return path;
+}
 
 static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 	struct rpmrepodata *rd = repo->data;
@@ -65,6 +81,8 @@ static int rpm_read(const struct repo *repo, struct pkgs *p, uint firstpid) {
 		requires = rpmdsNew(header, RPMTAG_REQUIRENAME, 0);
 		while (rpmdsNext(requires) != -1) {
 			req = rpmdsN(requires);
+			if (req[0] == '/')
+				req = get_cpath(rd, req);
 			reqflags = rpmdsFlags(requires);
 			reqver = rpmdsEVR(requires);
 			if (!(reqflags & (RPMSENSE_RPMLIB & ~RPMSENSE_PREREQ))) {
@@ -88,6 +106,7 @@ static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid
 	rpmdbMatchIterator iter;
 	Header header;
 	char buf[1000];
+	const char *cpath;
 	uint pid;
 	rpmtd bases, dirs, dirindexes;
 
@@ -136,10 +155,11 @@ static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid
 
 			snprintf(buf, sizeof (buf), "%s%s", rpmtdGetString(dirs),
 					rpmtdGetString(bases));
-			if (strings_get_id(files, buf) == -1)
+			cpath = get_cpath(rd, buf);
+			if (strings_get_id(files, cpath) == -1)
 				continue;
 
-			pkgs_add_fileprov(p, pid, buf);
+			pkgs_add_fileprov(p, pid, cpath);
 		}
 		rpmtdFreeData(bases);
 		if (dirsread) {
@@ -265,6 +285,31 @@ static void rpm_repo_clean(struct repo *r) {
 	r->data = NULL;
 }
 
+static int cmp_symlink(const char *root, const char *src, const char *dst) {
+	char buf1[PATH_MAX], buf2[PATH_MAX];
+	int r;
+
+	snprintf(buf1, sizeof (buf1), "%s/%s", root, src);
+	r = readlink(buf1, buf2, sizeof (buf2));
+	if (r < 0 || r >= sizeof (buf2))
+		return 1;
+	buf2[r] = '\0';
+	return strcmp(buf2, dst);
+}
+
+static void fill_flags(struct rpmrepodata *data) {
+	data->flags = 0;
+
+	if (!cmp_symlink(data->root, "bin", "usr/bin"))
+		data->flags |= FLAG_BIN_IN_USR;
+	if (!cmp_symlink(data->root, "sbin", "usr/sbin"))
+		data->flags |= FLAG_SBIN_IN_USR;
+	if (!cmp_symlink(data->root, "lib", "usr/lib"))
+		data->flags |= FLAG_LIB_IN_USR;
+	if (!cmp_symlink(data->root, "lib64", "usr/lib64"))
+		data->flags |= FLAG_LIB64_IN_USR;
+}
+
 void rpm_fillrepo(struct repo *r, const char *root) {
 	char *argv[] = {""};
 
@@ -275,6 +320,8 @@ void rpm_fillrepo(struct repo *r, const char *root) {
 	r->repo_clean = rpm_repo_clean;
 
 	r->data = malloc(sizeof (struct rpmrepodata));
+
 	((struct rpmrepodata *)r->data)->root = root;
 	((struct rpmrepodata *)r->data)->context = rpmcliInit(1, argv, NULL);
+	fill_flags((struct rpmrepodata *)r->data);
 }
