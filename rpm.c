@@ -365,7 +365,7 @@ static int rpm_remove_pkgs(const struct repo *repo, const struct pkgs *p, const 
 	len = 64 + strlen(root);
 	cmd = malloc(len);
 
-	r = snprintf(cmd, len, "rpm -e %s -r %s ", options, root);
+	r = snprintf(cmd, len, "rpm -evh %s -r %s ", options, root);
 	if (r < 0 || r >= len)
 		return 1;
 	j += r; len -= r;
