@@ -37,5 +37,6 @@ uint deps_add_evr(struct deps *deps, const char *name, int flags,
 		uint epoch, const char *version, const char *release);
 uint deps_find(const struct deps *deps, uint dep, uint *iter);
 int deps_match(const struct deps *deps, uint x, uint y);
+int deps_print(const struct deps *deps, uint dep, char *str, size_t size);
 
 #endif

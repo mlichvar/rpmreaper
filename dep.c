@@ -160,3 +160,33 @@ int deps_match(const struct deps *deps, uint x, uint y) {
 		return 1;
 	return 0;
 }
+
+int deps_print(const struct deps *deps, uint dep, char *str, size_t size) {
+	const char *n, *v, *r;
+	uint f;
+	int s, l;
+
+	n = strings_get(deps->strings, array_get(&deps->names, dep));
+	v = strings_get(deps->strings, array_get(&deps->vers, dep));
+	r = strings_get(deps->strings, array_get(&deps->rels, dep));
+	f = array_get(&deps->flags, dep);
+
+	s = snprintf(str, size, "%s", n);
+	if (s < 0 || s >= size)
+		return s;
+	l = s;
+
+	if (!f || !v || !v[0])
+		return l;
+
+	s = snprintf(str + l, size - l, " %s%s%s %s", f & RPMSENSE_LESS ? "<" : "",
+		f & RPMSENSE_GREATER ? ">" : "", f & RPMSENSE_EQUAL ? "=" : "", v);
+	if (s < 0 || s >= size)
+		return l + s;
+	l += s;
+
+	if (!r || !r[0])
+		return l;
+
+	return l + snprintf(str + l, size - l, ".%s", r);
+}

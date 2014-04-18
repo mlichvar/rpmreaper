@@ -126,6 +126,30 @@ uint pkgs_get_prov(const struct pkgs *p, uint pid, uint prov) {
 	return sets_get(&p->provides, pid, 0, prov);
 }
 
+uint pkgs_find_req(const struct pkgs *p, uint prov, uint *iter) {
+	uint req, iter2;
+
+	while ((req = deps_find(&p->deps, prov, iter)) != -1) {
+		iter2 = 0;
+		if (sets_find(&p->requires, req, &iter2) != -1)
+			return req;
+	}
+
+	return req;
+}
+
+uint pkgs_find_prov(const struct pkgs *p, uint req, uint *iter) {
+	uint prov, iter2;
+
+	while ((prov = deps_find(&p->deps, req, iter)) != -1) {
+		iter2 = 0;
+		if (sets_find(&p->provides, prov, &iter2) != -1)
+			return prov;
+	}
+
+	return prov;
+}
+
 static int pkg_req_pkg(const struct pkgs *p, uint pid, uint what) {
 	uint i, j, n, subs;
 
@@ -363,12 +387,12 @@ void pkgs_match_deps(struct pkgs *p) {
 	sets_set_size(&p->provides, n);
 
 	sets_hash(&p->provides);
+	sets_hash(&p->requires);
 
 	for (i = 0; i < n; i++)
 		fill_required(p, i);
 	sets_set_size(&p->required, n);
 
-	deps_clean(&p->deps);
 	sets_hash(&p->required);
 
 	for (i = 0; i < n; i++)
@@ -376,8 +400,6 @@ void pkgs_match_deps(struct pkgs *p) {
 	sets_set_size(&p->required_by, n);
 
 	sets_unhash(&p->required);
-	sets_clean(&p->requires);
-	sets_clean(&p->provides);
 
 	for (i = 0; i < n; i++)
 		pkgs_getw(p, i)->status |= leaf_pkg(p, i);

@@ -59,11 +59,21 @@ be left with the \fBb\fR flag and the missing packages should be unmarked
 manually.
 .TP 8
 \fBr, R\fR
-Show/hide subtree of packages that are required by (with \fBR\fR also indirectly) the highlighted package.
+Show/hide list of packages/capabilities that are required by the highlighted
+package/capability. When a package is highlighted, \fBR\fR includes also
+packages that are required indirectly.
 .TP 8
 \fBb, B\fR
-Show/hide subtree of packages that require (with \fBB\fR also indirectly) the
-highlighted package.
+Show/hide list of packages/capabilities that require the highlighted
+package/capability. When a package is highlighted, \fBB\fR includes also
+packages that require the highlighted package indirectly.
+.TP 8
+\fBm\fR
+Show/hide list of capabilities required by the highlighted package.
+.TP 8
+\fBp\fR
+Show/hide list of capabilities provided by the highlighted package. Only
+capabilities that are required by some other packages may be listed.
 .TP 8
 \fBo\fR
 Sort packages by name, flags or size.

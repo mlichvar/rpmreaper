@@ -82,6 +82,8 @@ uint pkgs_get_req_size(const struct pkgs *p, uint pid);
 uint pkgs_get_prov_size(const struct pkgs *p, uint pid);
 uint pkgs_get_req(const struct pkgs *p, uint pid, uint req);
 uint pkgs_get_prov(const struct pkgs *p, uint pid, uint prov);
+uint pkgs_find_req(const struct pkgs *p, uint prov, uint *iter);
+uint pkgs_find_prov(const struct pkgs *p, uint req, uint *iter);
 
 void pkgs_match_deps(struct pkgs *p);
 
