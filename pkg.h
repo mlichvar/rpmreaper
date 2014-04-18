@@ -96,4 +96,5 @@ int pkgs_delete_rec(struct pkgs *p, uint pid);
 int pkgs_undelete_rec(struct pkgs *p, uint pid);
 
 void pkgs_get_trans_reqs(const struct pkgs *p, uint pid, int reqby, struct sets *set);
+void pkgs_get_matching_deps(const struct pkgs *p, uint pid, uint ppid, int prov, struct sets *set);
 #endif

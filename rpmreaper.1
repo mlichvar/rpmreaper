@@ -68,12 +68,18 @@ Show/hide list of packages/capabilities that require the highlighted
 package/capability. When a package is highlighted, \fBB\fR includes also
 packages that require the highlighted package indirectly.
 .TP 8
-\fBm\fR
-Show/hide list of capabilities required by the highlighted package.
+\fBm, M\fR
+Show/hide list of capabilities required by the highlighted package. With
+\fBM\fR the list is limited to capabilities that match with capabilities
+provided by the parent package of the highlighted package in the currently
+displayed tree.
 .TP 8
-\fBp\fR
+\fBp, P\fR
 Show/hide list of capabilities provided by the highlighted package. Only
-capabilities that are required by some other packages may be listed.
+capabilities that are required by some other packages may be listed. With
+\fBP\fR the list is limited to capabilities that match with capabilities
+required by the parent package of the highlighted package in the currently
+displayed tree.
 .TP 8
 \fBo\fR
 Sort packages by name, flags or size.

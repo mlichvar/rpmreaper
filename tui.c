@@ -35,6 +35,7 @@
 #define FLAG_DEPREQ	(1<<6)
 #define FLAG_DEPPROV	(1<<7)
 #define FLAG_DEPBROKEN	(1<<8)
+#define FLAG_GRNDPARENT	(1<<9)
 
 #define SORT_BY_NAME	0
 #define SORT_BY_FLAGS	1
@@ -275,6 +276,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 		for (; i < used && ((dir > 0 && i > first) || (dir < 0 && i - first < lines));
 				i -= dir) {
 			int edge, ploop = 0, trans = 0, j, level1, level2, reqor = 0, oldreqor = 0;
+			int grandparent = 0;
 
 			if (!(get_row(l, i)->flags & (dir > 0 ? FLAG_REQBY : FLAG_REQ)))
 				continue;
@@ -295,6 +297,7 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 					trans = get_row(l, j)->flags & FLAG_TRANS;
 					oldreqor = reqor;
 					reqor = !!(get_row(l, j)->flags & FLAG_REQOR);
+					grandparent = get_row(l, j)->flags & FLAG_GRNDPARENT;
 				}
 
 				if ((dir > 0 && j >= first + lines) || (dir < 0 && j < first))
@@ -311,6 +314,15 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 				}
 
 				if (level2 == level1 + 1) {
+					if (grandparent) {
+						int k;
+						move(j - first + 1, LEVEL_START + LEVEL_WIDTH * (level1 - ls - 1) + 1);
+						addch('<');
+						for (k = 0; k < LEVEL_WIDTH - 3; k++)
+							addch(ACS_HLINE);
+						addch('>');
+					}
+
 					if (edge)
 						addch(dir > 0 ? ACS_ULCORNER : ACS_LLCORNER);
 					else 
@@ -427,8 +439,8 @@ void move_rows(struct pkglist *l, int from, int where) {
 		array_set_size(&l->rows, get_used_pkgs(l) - (from - where));
 }
 
-void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, int trans) {
-	if (!is_row_pkg(l, l->cursor) && (trans || deps))
+void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, int special) {
+	if (!is_row_pkg(l, l->cursor) && (deps || special))
 		return;
 
 	if (!reqby && get_row(l, l->cursor)->flags & FLAG_REQ) {
@@ -450,7 +462,7 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 		if (is_row_pkg(l, l->cursor)) {
 			uint pid = get_row(l, l->cursor)->pid;
 			if (!deps) {
-				if (trans) {
+				if (special) {
 					sets_init(&sets);
 					sets_set_size(&sets, 1);
 					pkgs_get_trans_reqs(p, pid, reqby, &sets);
@@ -462,14 +474,23 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 				}
 				scc = pkgs_get_scc(p, pid);
 			} else {
-				if (reqby) {
-					r = &p->provides;
-					flag = FLAG_DEPPROV;
-				} else {
-					r = &p->requires;
-					flag = FLAG_DEPREQ;
+				uint ppid = -1;
+				flag = reqby ? FLAG_DEPPROV : FLAG_DEPREQ;
+				sets_init(&sets);
+				sets_set_size(&sets, 1);
+				r = &sets;
+				s = 0;
+
+				if (special) {
+					int parent = find_parent(l, l->cursor);
+					if (parent == l->cursor || !is_row_pkg(l, parent))
+						return;
+					ppid = get_row(l, parent)->pid;
+					flag |= FLAG_GRNDPARENT;
+					special = 0;
 				}
-				s = pid;
+
+				pkgs_get_matching_deps(p, pid, ppid, reqby, &sets);
 			}
 		} else {
 			uint iter = 0, prov, req, dep = get_row(l, l->cursor)->dep;
@@ -527,7 +548,7 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 					row->pid = sets_get(r, s, i, j);
 					if (scc != -1 && pkgs_in_scc(p, scc, row->pid))
 						row->flags |= FLAG_PLOOP;
-					if (trans)
+					if (special)
 						row->flags |= FLAG_TRANS;
 				} else {
 					row->dep = sets_get(r, s, i, j);
@@ -1257,10 +1278,12 @@ void tui(struct repos *r, const char *limit) {
 				toggle_req(&l, p, 1, 0, c == 'B');
 				break;
 			case 'm':
-				toggle_req(&l, p, 0, 1, 0);
+			case 'M':
+				toggle_req(&l, p, 0, 1, c == 'M');
 				break;
 			case 'p':
-				toggle_req(&l, p, 1, 1, 0);
+			case 'P':
+				toggle_req(&l, p, 1, 1, c == 'P');
 				break;
 		}
 

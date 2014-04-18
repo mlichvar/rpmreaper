@@ -641,3 +641,31 @@ void pkgs_get_trans_reqs(const struct pkgs *p, uint pid, int reqby, struct sets 
 		}
 	}
 }
+
+void pkgs_get_matching_deps(const struct pkgs *p, uint pid1, uint pid2, int reqby, struct sets *set) {
+	uint i, dep1, dep2, iter;
+	const struct sets *r;
+
+	r = reqby ? &p->provides : &p->requires;
+
+	for (i = 0; i < sets_get_subset_size(r, pid1, 0); i++) {
+		dep1 = sets_get(r, pid1, 0, i);
+
+		if (pid2 != -1) {
+			iter = 0;
+			if (reqby) {
+				while ((dep2 = pkgs_find_req(p, dep1, &iter)) != -1)
+					if (sets_subset_has(&p->requires, pid2, 0, dep2))
+						break;
+			} else {
+				while ((dep2 = pkgs_find_prov(p, dep1, &iter)) != -1)
+					if (sets_subset_has(&p->provides, pid2, 0, dep2))
+						break;
+			}
+			if (dep2 == -1)
+				continue;
+		}
+
+		sets_add(set, 0, 0, dep1);
+	}
+}
