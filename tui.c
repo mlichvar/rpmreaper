@@ -968,7 +968,8 @@ void commit(struct repos *r, struct pkglist *l, const char *options) {
 
 		printf("\nPress Enter to continue.");
 		fflush(stdout);
-		(void)fgets(buf, sizeof (buf), stdin);
+		if (!fgets(buf, sizeof (buf), stdin))
+			;
 	}
 	reread_list(r, l);
 }
