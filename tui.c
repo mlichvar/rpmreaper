@@ -316,17 +316,20 @@ void draw_deplines(const struct pkglist *l, const struct pkgs *p) {
 				if (level2 == level1 + 1) {
 					if (grandparent) {
 						int k;
-						move(j - first + 1, LEVEL_START + LEVEL_WIDTH * (level1 - ls - 1) + 1);
-						addch('<');
+						move(j - first + 1, LEVEL_START + LEVEL_WIDTH * (level1 - ls - 1) + 2);
+						addch(dir > 0 ? '>' : '<');
 						for (k = 0; k < LEVEL_WIDTH - 3; k++)
 							addch(ACS_HLINE);
-						addch('>');
+						if (edge)
+							addch(dir > 0 ? ACS_TTEE : ACS_BTEE);
+						else
+							addch(reqor && dir < 0 ? ACS_RTEE : ACS_PLUS);
+					} else {
+						if (edge)
+							addch(dir > 0 ? ACS_ULCORNER : ACS_LLCORNER);
+						else
+							addch(reqor && dir < 0 ? ACS_VLINE : ACS_LTEE);
 					}
-
-					if (edge)
-						addch(dir > 0 ? ACS_ULCORNER : ACS_LLCORNER);
-					else 
-						addch(reqor && dir < 0 ? ACS_VLINE : ACS_LTEE);
 					if (reqor)
 						addch(dir > 0 ? ' ' : oldreqor ? ACS_LTEE : ACS_ULCORNER);
 					else
