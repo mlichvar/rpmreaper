@@ -1,3 +1,14 @@
+0.2.0 (2014-04-22)
+- add displaying of required and provided capabilities
+- support /bin, /sbin, /lib, /lib64 symlinked to /usr
+- edit rpm options with C key instead of always using --nodeps
+- print progress when removing packages
+- use faster rpm index when reading packages
+- fix reloading of packages with rpm 4.9.0
+- fix compiler warnings
+- use pkg-config to get rpm and ncurses build flags
+- drop support for rpm < 4.6
+
 0.1.6 (2009-04-02)
 - fix package info command on archs where char is unsigned (Adam Tkac)
 - support inverted regexps in search expressions (Petr Machata)
