@@ -1,5 +1,5 @@
 NAME = rpmreaper
-VERSION = 0.1.6
+VERSION = 0.2.0
 
 EXTRA_CFLAGS = -O -g -Wall
 CFLAGS = $(shell pkg-config --cflags rpm ncurses) $(EXTRA_CFLAGS)
