@@ -6,7 +6,7 @@ allows removing unnecessary packages and their dependencies from the system.
 
 Requirements:
 - ncurses
-- rpm libraries
+- rpm >= 4.6
 
 Homepage:
   https://fedorahosted.org/rpmreaper/
