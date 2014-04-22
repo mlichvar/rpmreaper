@@ -457,7 +457,7 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 		get_wrow(l, l->cursor)->flags &= ~FLAG_REQBY;
 	} else {
 		uint i, j, d, k, n, s, scc = -1;
-		int flag = 0;
+		int flag = 0, gpset = 0;
 		const struct sets *r;
 		struct row *row = NULL;
 		struct sets sets;
@@ -477,23 +477,25 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 				}
 				scc = pkgs_get_scc(p, pid);
 			} else {
-				uint ppid = -1;
+				int parent = find_parent(l, l->cursor);
+
 				flag = reqby ? FLAG_DEPPROV : FLAG_DEPREQ;
-				sets_init(&sets);
-				sets_set_size(&sets, 1);
-				r = &sets;
-				s = 0;
+
+				if (parent != l->cursor && is_row_pkg(l, parent)) {
+					sets_init(&sets);
+					sets_set_size(&sets, 1);
+					pkgs_get_matching_deps(p, pid, get_row(l, parent)->pid, reqby, &sets);
+					gpset = 1;
+				} else if (special)
+					return;
 
 				if (special) {
-					int parent = find_parent(l, l->cursor);
-					if (parent == l->cursor || !is_row_pkg(l, parent))
-						return;
-					ppid = get_row(l, parent)->pid;
-					flag |= FLAG_GRNDPARENT;
-					special = 0;
+					r = &sets;
+					s = 0;
+				} else {
+					r = reqby ? &p->provides : &p->requires;
+					s = pid;
 				}
-
-				pkgs_get_matching_deps(p, pid, ppid, reqby, &sets);
 			}
 		} else {
 			uint iter = 0, prov, req, dep = get_row(l, l->cursor)->dep;
@@ -527,11 +529,8 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 		}
 
 		n = sets_get_set_size(r, s);
-		if (!n) {
-			if (r == &sets)
-				sets_clean(&sets);
-			return;
-		}
+		if (!n)
+			goto cleanup;
 
 		if (reqby) {
 			move_rows(l, l->cursor, l->cursor + n);
@@ -560,6 +559,8 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 						if (pkgs_find_prov(p, row->dep, &iter) == -1)
 							row->flags |= FLAG_DEPBROKEN;
 					}
+					if (gpset && sets_subset_has(&sets, 0, 0, row->dep))
+						row->flags |= FLAG_GRNDPARENT;
 				}
 				if (i) 
 					row->flags |= FLAG_REQOR;
@@ -571,7 +572,8 @@ void toggle_req(struct pkglist *l, const struct pkgs *p, int reqby, int deps, in
 		row->flags |= FLAG_EDGE;
 		get_wrow(l, l->cursor)->flags |= reqby ? FLAG_REQBY : FLAG_REQ;
 
-		if (r == &sets)
+cleanup:
+		if (r == &sets || gpset)
 			sets_clean(&sets);
 	}
 }

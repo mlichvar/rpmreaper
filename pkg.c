@@ -650,21 +650,20 @@ void pkgs_get_matching_deps(const struct pkgs *p, uint pid1, uint pid2, int reqb
 
 	for (i = 0; i < sets_get_subset_size(r, pid1, 0); i++) {
 		dep1 = sets_get(r, pid1, 0, i);
+		iter = 0;
 
-		if (pid2 != -1) {
-			iter = 0;
-			if (reqby) {
-				while ((dep2 = pkgs_find_req(p, dep1, &iter)) != -1)
-					if (sets_subset_has(&p->requires, pid2, 0, dep2))
-						break;
-			} else {
-				while ((dep2 = pkgs_find_prov(p, dep1, &iter)) != -1)
-					if (sets_subset_has(&p->provides, pid2, 0, dep2))
-						break;
-			}
-			if (dep2 == -1)
-				continue;
+		if (reqby) {
+			while ((dep2 = pkgs_find_req(p, dep1, &iter)) != -1)
+				if (sets_subset_has(&p->requires, pid2, 0, dep2))
+					break;
+		} else {
+			while ((dep2 = pkgs_find_prov(p, dep1, &iter)) != -1)
+				if (sets_subset_has(&p->provides, pid2, 0, dep2))
+					break;
 		}
+
+		if (dep2 == -1)
+			continue;
 
 		sets_add(set, 0, 0, dep1);
 	}
