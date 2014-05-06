@@ -124,6 +124,8 @@ static int rpm_read_provs(const struct repo *repo, struct pkgs *p, uint firstpid
 		provides = rpmdsNew(header, RPMTAG_PROVIDENAME, 0);
 		while (rpmdsNext(provides) != -1) {
 			prov = rpmdsN(provides);
+			if (prov[0] == '/')
+				prov = get_cpath(rd, prov);
 			provflags = rpmdsFlags(provides);
 			provver = rpmdsEVR(provides);
 			provflags &= RPMSENSE_LESS | RPMSENSE_GREATER |
