@@ -7,7 +7,7 @@ LDFLAGS = $(shell pkg-config --libs rpm ncurses) $(EXTRA_LDFLAGS)
 
 prefix = /usr/local
 bindir = $(prefix)/bin
-mandir = $(prefix)/man
+mandir = $(prefix)/share/man
 man1dir = $(mandir)/man1
 
 objs = $(patsubst %.c,%.o,$(wildcard *.c))
