@@ -1005,7 +1005,7 @@ char *readline(const char *prompt, struct rl_history *h) {
 	buf[used] = '\0';
 
 	attron(COLOR_PAIR(2));
-	mvprintw(LINES - 1, 0, prompt);
+	mvprintw(LINES - 1, 0, "%s", prompt);
 	curs_set(1);
 	x = getcurx(stdscr);
 
@@ -1087,7 +1087,7 @@ hist_skip:
 				used--;
 				break;
 			case KEY_RESIZE:
-				mvprintw(LINES - 1, 0, prompt);
+				mvprintw(LINES - 1, 0, "%s", prompt);
 				break;
 			default:
 				if (c < 0x20 || c > 0x7f)
